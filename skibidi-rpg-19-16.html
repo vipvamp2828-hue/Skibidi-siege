@@ -1,0 +1,4465 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SKIBIDI SIEGE - Camera Base</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+  /* 기본 리셋 및 글로벌 설정 */
+  html, body { 
+    margin: 0; padding: 0; overflow: hidden; background: #0a0a0f; 
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+    touch-action: none; user-select: none;
+  }
+  canvas { display: block; touch-action: none; }
+
+  /* 공통 글래스모피즘 패널 스타일 */
+  .glass-panel {
+    background: rgba(15, 20, 28, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+
+  /* HUD */
+  #hud {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.8);
+    z-index: 10;
+  }
+  #topbar {
+    position: absolute; top: 16px; left: 16px; right: 16px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  
+  .panel {
+    padding: 10px 16px;
+    font-size: 13px;
+    margin-bottom: 8px;
+    transition: transform 0.2s;
+  }
+
+  /* 게이지 바 스타일 */
+  .bar-container { width: 220px; }
+  .bar-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; font-weight: 600; letter-spacing: 0.5px;}
+  
+  #healthPanel .bar-row { color: #ff8a98; }
+  #levelPanel .bar-row { color: #ffd166; }
+
+  .bar-bg { 
+    width: 100%; border-radius: 8px; overflow: hidden; 
+    background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.1); 
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+  }
+  #hpBarBg { height: 14px; }
+  #xpBarBg { height: 10px; }
+  
+  #hpBar { 
+    height: 100%; width: 100%; 
+    background: linear-gradient(90deg, #ff2d40, #ff5b6c); 
+    box-shadow: 0 0 10px rgba(255, 91, 108, 0.5);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+  }
+  #xpBar { 
+    height: 100%; width: 0%; 
+    background: linear-gradient(90deg, #ff9f1c, #ffd166); 
+    box-shadow: 0 0 10px rgba(255, 209, 102, 0.5);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+  }
+  #jobLevelHint { font-size: 11px; color: #8fc5ff; margin-top: 6px; font-weight: 600; }
+  #jetpackHint { font-size: 11px; color: #ffb877; margin-top: 6px; font-weight: 600; }
+  #titanHint { font-size: 11px; color: #7fd4ff; margin-top: 6px; font-weight: 600; }
+
+  /* 중앙 메시지 */
+  #centerMsg {
+    position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 26px; font-weight: 800; letter-spacing: 1.5px; color: #3cff8b;
+    text-shadow: 0 0 15px rgba(60, 255, 139, 0.6), 0 4px 6px rgba(0,0,0,0.8);
+    opacity: 0; transition: opacity 0.3s, transform 0.3s; text-align: center; width: 90%;
+  }
+
+  /* 크로스헤어 */
+  #crosshair {
+    position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+    margin: -3px 0 0 -3px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9); box-shadow: 0 0 8px rgba(0, 0, 0, 0.8), 0 0 4px rgba(255,255,255,0.5);
+  }
+
+  /* 보스 등장 배너 */
+  #bossBanner {
+    position: fixed; top: 22%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 40; display: none; text-align: center; pointer-events: none;
+    opacity: 0; transition: opacity 0.5s;
+  }
+  #bossBanner .bbSub {
+    font-size: 15px; font-weight: 700; color: #ff5b6c; letter-spacing: 3px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+  }
+  #bossBanner .bbName {
+    font-size: 34px; font-weight: 900; color: #fff; letter-spacing: 2px; margin-top: 4px;
+    text-shadow: 0 0 20px rgba(255,60,60,0.7), 0 4px 10px rgba(0,0,0,0.9);
+  }
+
+  /* 보스 체력바 (화면 상단) */
+  #bossBarContainer {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 20; display: none; width: min(420px, 82vw); text-align: center;
+  }
+  #bossBarName {
+    font-size: 13px; font-weight: 800; color: #ffdada; letter-spacing: 1.5px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.9); margin-bottom: 4px;
+  }
+  #bossBarBg {
+    width: 100%; height: 14px; border-radius: 8px; overflow: hidden;
+    background: rgba(20,4,6,0.7); border: 1px solid rgba(255,255,255,0.25);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  }
+  #bossBarFill {
+    height: 100%; width: 100%; border-radius: 8px;
+    background: linear-gradient(90deg, #ff2233, #ff7a3d);
+    transition: width 0.25s ease;
+  }
+
+  /* 조작법 */
+  #instructions {
+    position: absolute; bottom: 16px; left: 16px;
+    font-size: 12px; line-height: 1.8; color: #a1a1b5;
+    max-width: 280px; font-weight: 500;
+  }
+  #instructions b { color: #fff; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); margin: 0 2px; }
+
+  #hud.cutscene-active #crosshair, #hud.cutscene-active #instructions { opacity: 0; transition: opacity 0.3s; }
+
+  /* 컷신 (등장씬) 오버레이: 레터박스 바 + 자막 + 스킵 버튼 */
+  #cutsceneOverlay { position: fixed; inset: 0; z-index: 55; display: none; pointer-events: none; }
+  #cutsceneBarTop, #cutsceneBarBottom {
+    position: absolute; left: 0; width: 100%; height: 12%; background: #000;
+    transition: transform 0.4s ease;
+  }
+  #cutsceneBarTop { top: 0; }
+  #cutsceneBarBottom { bottom: 0; }
+  #cutsceneSubtitle {
+    position: absolute; left: 50%; bottom: 16%; transform: translateX(-50%);
+    max-width: 82%; text-align: center; color: #fff; font-size: 17px; font-weight: 700;
+    letter-spacing: 0.3px; line-height: 1.5;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.6);
+    opacity: 0; transition: opacity 0.35s ease; padding: 0 12px;
+  }
+  #cutsceneSkipBtn {
+    position: absolute; right: 16px; bottom: 16px; pointer-events: auto; cursor: pointer;
+    padding: 9px 16px; font-size: 12px; font-weight: 700; color: #fff;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px; backdrop-filter: blur(6px); transition: all 0.2s;
+  }
+  #cutsceneSkipBtn:hover { background: rgba(255,255,255,0.22); }
+  #cutsceneSkipBtn:active { transform: scale(0.95); }
+
+  /* 우측 상단 메뉴 */
+  #topRightBar {
+    position: fixed; top: 16px; right: 16px; z-index: 25;
+    display: flex; align-items: center; gap: 10px;
+  }
+  #coinPanel {
+    padding: 10px 16px; color: #ffe066; font-size: 16px; font-weight: 700;
+    white-space: nowrap; border: 1px solid rgba(255, 209, 102, 0.3);
+    box-shadow: 0 0 15px rgba(255, 209, 102, 0.1);
+  }
+  #invToggleBtn {
+    pointer-events: auto; cursor: pointer;
+    padding: 10px 18px; color: #eafff2; font-size: 20px;
+    border: 1px solid rgba(120, 255, 180, 0.3); transition: all 0.2s;
+  }
+  #invToggleBtn:hover { transform: scale(1.05); background: rgba(120, 255, 180, 0.1); }
+  #invToggleBtn:active { transform: scale(0.95); }
+
+  #skillTreeBtn {
+    pointer-events: auto; cursor: pointer;
+    padding: 10px 18px; color: #9dffc4; font-size: 20px;
+    border: 1px solid rgba(60, 255, 139, 0.3); transition: all 0.2s;
+  }
+  #skillTreeBtn:hover { transform: scale(1.05); background: rgba(60, 255, 139, 0.1); }
+  #skillTreeBtn:active { transform: scale(0.95); }
+
+  #jobSelectBtn {
+    pointer-events: auto; cursor: pointer;
+    padding: 10px 18px; color: #8fc5ff; font-size: 20px;
+    border: 1px solid rgba(120, 180, 255, 0.3); transition: all 0.2s;
+  }
+  #jobSelectBtn:hover { transform: scale(1.05); background: rgba(120, 180, 255, 0.1); }
+  #jobSelectBtn:active { transform: scale(0.95); }
+
+  #titanSelectBtn {
+    pointer-events: auto; cursor: pointer;
+    padding: 10px 18px; color: #7fd4ff; font-size: 20px;
+    border: 1px solid rgba(47, 168, 255, 0.4); transition: all 0.2s;
+  }
+  #titanSelectBtn:hover { transform: scale(1.05); background: rgba(47, 168, 255, 0.12); }
+  #titanSelectBtn:active { transform: scale(0.95); }
+
+  #codeBtn {
+    pointer-events: auto; cursor: pointer;
+    padding: 10px 18px; color: #ffd166; font-size: 20px;
+    border: 1px solid rgba(255, 209, 102, 0.35); transition: all 0.2s;
+  }
+  #codeBtn:hover { transform: scale(1.05); background: rgba(255, 209, 102, 0.1); }
+  #codeBtn:active { transform: scale(0.95); }
+
+  #codeInput {
+    width: 100%; box-sizing: border-box; padding: 12px 14px; margin: 10px 0 16px;
+    border-radius: 10px; border: 1px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.06); color: #fff; font-size: 15px; letter-spacing: 1px;
+  }
+  #codeInput:focus { outline: none; border-color: rgba(255, 209, 102, 0.6); }
+
+  #jobSelectList .travelOption b { display: flex; justify-content: space-between; align-items: center; }
+
+  /* 공통 모달창 스타일 */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 60; display: none;
+    background: rgba(4, 6, 10, 0.85); backdrop-filter: blur(5px);
+    align-items: center; justify-content: center;
+  }
+  .modal-box {
+    width: min(520px, 92vw); max-height: 85vh; overflow-y: auto;
+    background: linear-gradient(145deg, #161a22, #0d1015); 
+    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px;
+    padding: 24px; color: #eee; box-shadow: 0 25px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05);
+    animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  @keyframes popIn {
+    0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal-box h2 { margin: 0 0 6px; font-size: 22px; font-weight: 800; letter-spacing: 0.5px; }
+  .modal-box .sub { font-size: 13px; color: #8a8d9e; margin-bottom: 20px; font-weight: 500; }
+  
+  /* 공통 버튼 스타일 */
+  .btn-primary {
+    width: 100%; padding: 14px; border: none; border-radius: 12px; margin-top: 20px;
+    font-size: 15px; font-weight: 800; cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  }
+  .btn-green { background: linear-gradient(135deg, #3cff8b, #0fd45f); color: #04120a; }
+  .btn-green:hover { background: linear-gradient(135deg, #5cff9f, #1ee06e); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(60, 255, 139, 0.3); }
+  .btn-yellow { background: linear-gradient(135deg, #ffd166, #ff9f1c); color: #2a1a00; }
+  .btn-yellow:hover { background: linear-gradient(135deg, #ffdb85, #ffad3b); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 209, 102, 0.3); }
+  .btn-primary:active { transform: translateY(1px); box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+
+  /* 인벤토리 */
+  #invBox h2 { color: #9dffc4; }
+  #statsLine { font-size: 14px; color: #9dffc4; margin-bottom: 20px; padding: 10px; background: rgba(157, 255, 196, 0.1); border-radius: 8px; text-align: center; font-weight: 600; }
+  
+  #equipRow { display: flex; gap: 12px; margin-bottom: 12px; }
+  #armorEquipGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  
+  .equipSlot {
+    flex: 1; aspect-ratio: 1; border: 2px dashed rgba(157,255,196,0.3); border-radius: 14px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; background: rgba(255,255,255,0.02); text-align: center; padding: 8px; box-sizing: border-box;
+    transition: all 0.2s; position: relative; overflow: hidden;
+  }
+  .equipSlot:hover { background: rgba(157,255,196,0.05); border-color: rgba(157,255,196,0.6); }
+  .equipSlot.filled { border-style: solid; background: rgba(157,255,196,0.08); border-color: rgba(157,255,196,0.5); box-shadow: inset 0 0 15px rgba(157,255,196,0.05); }
+  .equipSlot .slotLabel { font-size: 11px; color: #8fa; margin-bottom: 6px; font-weight: 700; opacity: 0.8; }
+  .equipSlot .icon { font-size: 32px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); transition: transform 0.2s; }
+  .equipSlot:hover .icon { transform: scale(1.1); }
+  .equipSlot .itemName { font-size: 12px; margin-top: 4px; font-weight: 600; }
+  .equipSlot .statTxt { font-size: 11px; color: #ffd166; font-weight: 700; margin-top: 2px; }
+
+  #invGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .invSlot {
+    aspect-ratio: 1; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+    background: rgba(255,255,255,0.03); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; cursor: pointer; position: relative;
+    transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+  .invSlot:hover:not(.empty) { background: rgba(157,255,196,0.1); border-color: rgba(157,255,196,0.4); transform: translateY(-2px); }
+  .invSlot:active:not(.empty) { transform: scale(0.95); }
+  .invSlot .icon { font-size: 26px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+  .invSlot .qty { position: absolute; bottom: 4px; right: 6px; font-size: 11px; color: #fff; font-weight: 800; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 8px; }
+  .invSlot .itemName { font-size: 11px; color: #ddd; margin-top: 4px; text-align: center; font-weight: 500; }
+  .invSlot.empty { border: 1px dashed rgba(255,255,255,0.1); opacity: 0.4; box-shadow: none; background: transparent; }
+
+  /* 상호작용 프롬프트 */
+  #interactPrompt {
+    position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); z-index: 20;
+    display: none; pointer-events: auto; cursor: pointer;
+    background: rgba(10, 12, 20, 0.85); border: 2px solid #ffe066;
+    border-radius: 30px; padding: 12px 24px; color: #ffe066; font-size: 15px; font-weight: 800;
+    box-shadow: 0 8px 25px rgba(255, 209, 102, 0.2); white-space: nowrap; transition: all 0.2s;
+    animation: floatUpDown 2s infinite ease-in-out;
+  }
+  #interactPrompt:hover { transform: translateX(-50%) scale(1.05); background: rgba(255, 209, 102, 0.15); }
+  @keyframes floatUpDown {
+    0%, 100% { margin-bottom: 0; }
+    50% { margin-bottom: 8px; }
+  }
+
+  /* 상점 */
+  #shopBox h2 { color: #ffe066; }
+  #shopCoinLine { font-size: 15px; color: #ffe066; margin-bottom: 18px; padding: 10px; background: rgba(255, 209, 102, 0.1); border-radius: 8px; text-align: center; font-weight: 700; }
+  #shopGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  
+  .shopItem {
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+    background: rgba(255,255,255,0.03); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; cursor: pointer; padding: 16px 8px; text-align: center;
+    position: relative; overflow: hidden; transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+  .shopItem:hover:not(.cantAfford) { background: rgba(255,209,102,0.1); border-color: rgba(255,209,102,0.4); transform: translateY(-2px); }
+  .shopItem .icon { font-size: 32px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); transition: transform 0.2s; }
+  .shopItem:hover:not(.cantAfford) .icon { transform: scale(1.1); }
+  .shopItem .itemName { font-size: 12px; color: #ddd; margin-top: 8px; font-weight: 600; }
+  .shopItem .price { font-size: 14px; color: #ffe066; margin-top: 6px; font-weight: 800; background: rgba(0,0,0,0.4); padding: 4px 10px; border-radius: 12px; }
+  .shopItem.cantAfford { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
+  .shopItem.purchaseFlash { animation: purchaseFlash 0.5s ease; }
+  @keyframes purchaseFlash {
+    0% { background: rgba(255,209,102,0.1); transform: scale(1); }
+    30% { background: rgba(255,209,102,0.8); transform: scale(1.05); }
+    100% { background: rgba(255,209,102,0.1); transform: scale(1); }
+  }
+
+  /* 퀘스트 및 이동 */
+  #questProgressLine { font-size: 14px; color: #9dffc4; margin: 16px 0; font-weight: 600; background: rgba(157, 255, 196, 0.1); padding: 10px; border-radius: 8px; }
+  #travelGrid { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
+  .travelOption {
+    border: 1px solid rgba(157,255,196,0.2); border-radius: 12px; padding: 16px;
+    background: rgba(255,255,255,0.03); cursor: pointer; text-align: left; transition: all 0.2s;
+  }
+  .travelOption b { color: #9dffc4; display: block; margin-bottom: 6px; font-size: 15px; }
+  .travelOption span { font-size: 13px; color: #a1a1b5; }
+  .travelOption:hover { background: rgba(157,255,196,0.1); border-color: rgba(157,255,196,0.5); transform: translateX(5px); }
+
+  /* 기지 귀환 버튼 & 퀘스트 트래커 */
+  #returnBaseBtn {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 20; display: none;
+    padding: 10px 20px; font-size: 14px;
+    border: 1px solid rgba(120,255,180,0.4); color: #eafff2; transition: all 0.2s;
+  }
+  #returnBaseBtn:hover { background: rgba(120,255,180,0.2); }
+
+  #questTracker {
+    position: fixed; top: 220px; left: 16px; z-index: 16; display: none;
+    border-left: 3px solid #3cff8b; padding: 12px 16px; color: #fff; font-size: 13px; font-weight: 600;
+  }
+  #jobQuestTracker {
+    position: fixed; top: 280px; left: 16px; z-index: 16; display: none;
+    border-left: 3px solid #ffd166; padding: 12px 16px; color: #fff; font-size: 13px; font-weight: 600;
+  }
+  #giantJobQuestTracker {
+    position: fixed; top: 340px; left: 16px; z-index: 16; display: none;
+    border-left: 3px solid #7fd4ff; padding: 12px 16px; color: #fff; font-size: 13px; font-weight: 600;
+  }
+
+  /* 터치 컨트롤 (모바일) */
+  #touchControls { position: fixed; inset: 0; z-index: 15; pointer-events: none; display: none; }
+  #moveZone { position: absolute; left: 0; top: 0; width: 50%; height: 100%; pointer-events: auto; }
+  #lookZone { position: absolute; right: 0; top: 0; width: 50%; height: 100%; pointer-events: auto; }
+  
+  #joyBase {
+    position: fixed; width: 120px; height: 120px; margin: -60px 0 0 -60px;
+    border-radius: 50%; background: rgba(0,0,0,0.2); border: 2px solid rgba(255,255,255,0.15);
+    backdrop-filter: blur(4px); opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  #joyStick {
+    position: fixed; width: 50px; height: 50px; margin: -25px 0 0 -25px;
+    border-radius: 50%; background: rgba(157,255,196,0.8); border: 2px solid #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5); opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+
+  .actionBtn {
+    position: fixed; z-index: 25; border-radius: 50%; display: none;
+    align-items: center; justify-content: center; flex-direction: column;
+    color: #fff; font-weight: 800; user-select: none; -webkit-tap-highlight-color: transparent;
+    pointer-events: auto; backdrop-filter: blur(4px); transition: all 0.1s;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  }
+  .actionBtn:active { transform: scale(0.9) translateY(4px); box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+  #attackBtn {
+    right: 30px; bottom: 30px; width: 88px; height: 88px; font-size: 32px;
+    background: rgba(255, 91, 108, 0.2); border: 2px solid rgba(255, 91, 108, 0.6);
+  }
+  #jumpBtn {
+    right: 140px; bottom: 40px; width: 66px; height: 66px; font-size: 12px; letter-spacing: 1px;
+    background: rgba(157, 255, 196, 0.15); border: 2px solid rgba(157, 255, 196, 0.5);
+  }
+  #dashBtn {
+    right: 30px; bottom: 140px; width: 66px; height: 66px; font-size: 24px;
+    background: rgba(255, 209, 102, 0.15); border: 2px solid rgba(255, 209, 102, 0.5);
+  }
+  #skillBtn {
+    right: 140px; bottom: 140px; width: 66px; height: 66px; font-size: 24px;
+    background: rgba(204, 61, 61, 0.2); border: 2px solid rgba(204, 61, 61, 0.6);
+  }
+  #powerPunchBtn {
+    right: 250px; bottom: 30px; width: 62px; height: 62px; font-size: 24px;
+    background: rgba(255, 138, 152, 0.2); border: 2px solid rgba(255, 138, 152, 0.6);
+  }
+  #rageBtn {
+    right: 250px; bottom: 140px; width: 62px; height: 62px; font-size: 24px;
+    background: rgba(255, 100, 40, 0.2); border: 2px solid rgba(255, 100, 40, 0.6);
+  }
+  #supportBtn {
+    right: 360px; bottom: 85px; width: 62px; height: 62px; font-size: 22px;
+    background: rgba(120, 180, 255, 0.2); border: 2px solid rgba(120, 180, 255, 0.6);
+  }
+  #titanBtn {
+    right: 360px; bottom: 200px; width: 68px; height: 68px; font-size: 26px;
+    background: rgba(47, 168, 255, 0.25); border: 2px solid rgba(47, 168, 255, 0.75);
+    box-shadow: 0 0 18px rgba(47, 168, 255, 0.35), 0 8px 20px rgba(0,0,0,0.3);
+  }
+  #dashBtn.onCooldown, #attackBtn.onCooldown, #skillBtn.onCooldown,
+  #powerPunchBtn.onCooldown, #rageBtn.onCooldown, #supportBtn.onCooldown, #titanBtn.onCooldown { opacity: 0.3; filter: grayscale(1); }
+
+  /* 시작 스크린 */
+  #startScreen {
+    position: fixed; inset: 0; z-index: 100;
+    background: radial-gradient(circle at 50% 30%, #1a2a22 0%, #05070a 80%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #fff; text-align: center; padding: 24px; box-sizing: border-box;
+  }
+  #startScreen h1 {
+    font-size: clamp(36px, 8vw, 64px); margin: 0; letter-spacing: 4px; font-weight: 900;
+    background: linear-gradient(135deg, #3cff8b 0%, #ffe066 50%, #ff5b6c 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.8)); margin-bottom: 10px;
+  }
+  #startScreen p { 
+    color: #a1a1b5; max-width: 520px; margin: 16px 0 40px; line-height: 1.8; 
+    font-size: 15px; font-weight: 500; background: rgba(0,0,0,0.3); padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);
+  }
+  #startBtn {
+    padding: 18px 56px; font-size: 20px; font-weight: 800; letter-spacing: 2px;
+    background: linear-gradient(135deg, #3cff8b, #0fd45f); border: none; border-radius: 40px;
+    color: #04120a; cursor: pointer; box-shadow: 0 10px 30px rgba(60, 255, 139, 0.4);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  #startBtn:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 15px 40px rgba(60, 255, 139, 0.6); }
+  #startBtn:active { transform: translateY(2px) scale(0.98); }
+
+  /* 에러 박스 */
+  #errorBox {
+    position: fixed; top: 16px; left: 16px; right: 16px; z-index: 999;
+    background: rgba(255, 45, 64, 0.9); color: #fff; padding: 12px 20px; border-radius: 12px;
+    font-size: 13px; font-weight: 600; display: none; white-space: pre-wrap;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+  }
+
+  /* 스크롤바 커스텀 */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+</style>
+</head>
+<body>
+
+<div id="errorBox"></div>
+
+<div id="startScreen">
+  <h1>🎥 SKIBIDI SIEGE 🚽</h1>
+  <p>카메라맨들의 전초기지입니다.<br>맵에 떨어진 아이템을 주우면 경험치를, 코인을 주우면 재화를 얻어요.<br>인벤토리(🎒)에서 장비 장착, 상점(🏪)에서 코인으로 아이템을 살 수 있어요.<br><br><b>PC:</b> WASD + 마우스<br><b>모바일:</b> 화면 하단 가상 조이스틱</p>
+  <button id="startBtn">게임 시작</button>
+</div>
+
+<div id="hud">
+  <div id="topbar">
+    <div>
+      <div id="healthPanel" class="glass-panel panel">
+        <div class="bar-container">
+          <div class="bar-row"><span>HEALTH</span><span id="hpLabel">100 / 100</span></div>
+          <div class="bar-bg" id="hpBarBg"><div id="hpBar"></div></div>
+        </div>
+      </div>
+      <div id="levelPanel" class="glass-panel panel">
+        <div class="bar-container">
+          <div class="bar-row"><span id="lvLabel">Lv. 1</span><span id="xpLabel">0 / 100 XP</span></div>
+          <div class="bar-bg" id="xpBarBg"><div id="xpBar"></div></div>
+          <div id="jobLevelHint" style="display:none;"></div>
+          <div id="jetpackHint" style="display:none;"></div>
+          <div id="titanHint" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="crosshair"></div>
+  <div id="centerMsg"></div>
+  <div id="instructions" class="glass-panel panel">
+    <b>WASD</b> 이동 &nbsp; <b>화면 드래그</b> 시점 &nbsp; <b>Space</b> 점프 &nbsp; <b>E</b> 공격 &nbsp; <b>Q</b> 뚫어뻥 &nbsp; <b>Shift</b> 대시 &nbsp; <b>I</b> 인벤
+  </div>
+</div>
+
+<div id="bossBanner"><div class="bbSub"></div><div class="bbName"></div></div>
+<div id="bossBarContainer">
+  <div id="bossBarName"></div>
+  <div id="bossBarBg"><div id="bossBarFill"></div></div>
+</div>
+
+<div id="cutsceneOverlay">
+  <div id="cutsceneBarTop"></div>
+  <div id="cutsceneBarBottom"></div>
+  <div id="cutsceneSubtitle"></div>
+  <button id="cutsceneSkipBtn">스킵 ▶▶</button>
+</div>
+
+<div id="questTracker" class="glass-panel panel"></div>
+<div id="jobQuestTracker" class="glass-panel panel"></div>
+<div id="giantJobQuestTracker" class="glass-panel panel"></div>
+
+<div id="topRightBar">
+  <div id="coinPanel" class="glass-panel">🪙 0</div>
+  <div id="jobSelectBtn" class="glass-panel">💼</div>
+  <div id="titanSelectBtn" class="glass-panel">🔵</div>
+  <div id="skillTreeBtn" class="glass-panel">🌳</div>
+  <div id="invToggleBtn" class="glass-panel">🎒</div>
+  <div id="codeBtn" class="glass-panel">🎁</div>
+</div>
+
+<div id="touchControls">
+  <div id="moveZone"></div>
+  <div id="lookZone"></div>
+</div>
+<div id="joyBase"></div>
+<div id="joyStick"></div>
+<div id="attackBtn" class="actionBtn">⚔️</div>
+<div id="dashBtn" class="actionBtn">💨</div>
+<div id="skillBtn" class="actionBtn">🪠</div>
+<div id="powerPunchBtn" class="actionBtn">👊</div>
+<div id="rageBtn" class="actionBtn">🔥</div>
+<div id="supportBtn" class="actionBtn">📣</div>
+<div id="titanBtn" class="actionBtn">🔵</div>
+<div id="jumpBtn" class="actionBtn">JUMP</div>
+
+<div id="invModal" class="modal-overlay">
+  <div id="invBox" class="modal-box">
+    <h2>🎒 인벤토리</h2>
+    <div class="sub">아이템을 탭하여 장착하거나 해제하세요.</div>
+    <div id="statsLine">⚔️ 공격력 <b id="atkVal" style="color:#fff;">1</b> &nbsp;·&nbsp; 🛡️ 방어력 <b id="defVal" style="color:#fff;">0</b></div>
+    
+    <div id="equipRow">
+      <div class="equipSlot" id="slot_weapon" data-slot="weapon">
+        <div class="slotLabel">무기</div>
+        <div class="icon">➕</div>
+      </div>
+      <div class="equipSlot" id="slot_titan" data-slot="titan" style="border-color: rgba(47,168,255,0.5);">
+        <div class="slotLabel">타이탄 코어</div>
+        <div class="icon">➕</div>
+      </div>
+    </div>
+    <div id="armorEquipGrid">
+      <div class="equipSlot" id="slot_head" data-slot="head">
+        <div class="slotLabel">머리</div><div class="icon">➕</div>
+      </div>
+      <div class="equipSlot" id="slot_chest" data-slot="chest">
+        <div class="slotLabel">갑바</div><div class="icon">➕</div>
+      </div>
+      <div class="equipSlot" id="slot_legs" data-slot="legs">
+        <div class="slotLabel">바지</div><div class="icon">➕</div>
+      </div>
+      <div class="equipSlot" id="slot_feet" data-slot="feet">
+        <div class="slotLabel">신발</div><div class="icon">➕</div>
+      </div>
+    </div>
+    
+    <div id="invGrid"></div>
+    <button id="invCloseBtn" class="btn-primary btn-green">닫기</button>
+  </div>
+</div>
+
+<div id="interactPrompt">🏪 상점 열기 (E / 탭)</div>
+
+<div id="questDialog" class="modal-overlay">
+  <div id="questBox" class="modal-box">
+    <h2 id="questTitle">💬 퀘스트</h2>
+    <div id="questText" class="sub"></div>
+    <div id="questProgressLine"></div>
+    <button id="questActionBtn" class="btn-primary btn-green" style="display:none;"></button>
+    <button id="questCloseBtn" class="btn-primary btn-yellow">닫기</button>
+  </div>
+</div>
+
+<div id="travelDialog" class="modal-overlay">
+  <div id="travelBox" class="modal-box">
+    <h2>🧭 어디로 갈까?</h2>
+    <div class="sub">이동할 지역을 선택하세요.</div>
+    <div id="travelGrid"></div>
+    <button id="travelCloseBtn" class="btn-primary btn-yellow">닫기</button>
+  </div>
+</div>
+
+<div id="jobDialog" class="modal-overlay">
+  <div class="modal-box">
+    <h2>🎥 카메라맨 전직</h2>
+    <div id="jobReqText" class="sub"></div>
+    <div id="jobReqList" style="margin:14px 0; font-size:13px; line-height:2;"></div>
+    <button id="jobActionBtn" class="btn-primary btn-green" style="display:none;"></button>
+    <button id="jobCloseBtn" class="btn-primary btn-yellow">닫기</button>
+  </div>
+</div>
+
+<div id="giantJobDialog" class="modal-overlay">
+  <div class="modal-box">
+    <h2>🦾 대형카메라맨 전직</h2>
+    <div id="giantJobText" class="sub"></div>
+    <button id="giantJobActionBtn" class="btn-primary btn-green" style="display:none;"></button>
+    <button id="giantJobCloseBtn" class="btn-primary btn-yellow">닫기</button>
+  </div>
+</div>
+
+<div id="scientistDialog" class="modal-overlay">
+  <div class="modal-box">
+    <h2>🔬 과학자 카메라맨</h2>
+    <div id="scientistText" class="sub"></div>
+    <button id="scientistActionBtn" class="btn-primary btn-green" style="display:none;"></button>
+    <button id="scientistCloseBtn" class="btn-primary btn-yellow">닫기</button>
+  </div>
+</div>
+
+<div id="skillTreeModal" class="modal-overlay">
+  <div class="modal-box">
+    <h2>🌳 스킬트리</h2>
+    <div id="skillTreeSub" class="sub"></div>
+    <div id="skillTreeXPLine" style="margin-bottom:14px;"></div>
+    <div id="skillTreeList"></div>
+    <button id="skillTreeCloseBtn" class="btn-primary btn-yellow">닫기</button>
+  </div>
+</div>
+
+<div id="jobSelectModal" class="modal-overlay">
+  <div class="modal-box">
+    <h2>💼 직업 선택</h2>
+    <div class="sub">전직 퀘스트를 완료하면 여기서 직업이 확인/선택돼요.</div>
+    <div id="jobSelectList"></div>
+    <button id="jobSelectCloseBtn" class="btn-primary btn-yellow">닫기</button>
+  </div>
+</div>
+
+<div id="titanSelectModal" class="modal-overlay">
+  <div class="modal-box">
+    <h2>🔵 타이탄 창</h2>
+    <div class="sub">타이탄 코어를 장착하면 <b>C 키</b> (또는 🔵 버튼)로 각성할 수 있어요.</div>
+    <div id="titanSelectList"></div>
+    <button id="titanSelectCloseBtn" class="btn-primary btn-yellow">닫기</button>
+  </div>
+</div>
+
+<div id="codeModal" class="modal-overlay">
+  <div class="modal-box">
+    <h2>🎁 코드 입력</h2>
+    <div class="sub">보유 중인 특별 코드를 입력하세요.</div>
+    <input id="codeInput" type="text" placeholder="코드를 입력하세요" autocomplete="off" autocapitalize="off" spellcheck="false" />
+    <div id="codeResultText" class="sub" style="min-height:18px;"></div>
+    <button id="codeSubmitBtn" class="btn-primary btn-green">코드 사용</button>
+    <button id="codeCloseBtn" class="btn-primary btn-yellow">닫기</button>
+  </div>
+</div>
+
+<div id="returnBaseBtn" class="glass-panel panel">🏠 기지로 귀환</div>
+
+<div id="shopModal" class="modal-overlay">
+  <div id="shopBox" class="modal-box">
+    <h2>🏪 상점</h2>
+    <div class="sub">획득한 코인으로 강력한 아이템을 구매하세요.</div>
+    <div id="shopCoinLine">보유 코인: 🪙 <b id="shopCoinVal">0</b></div>
+    <div id="shopGrid"></div>
+    <button id="shopCloseBtn" class="btn-primary btn-yellow">닫기</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+window.onerror = function(msg, src, line) {
+  const box = document.getElementById('errorBox');
+  box.style.display = 'block';
+  box.textContent = '오류: ' + msg + ' (line ' + line + ')';
+};
+
+const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xb0c4de); // 눈 오는 날씨 같은 배경색
+scene.fog = new THREE.Fog(0xb0c4de, 20, 170);
+
+const camera = new THREE.PerspectiveCamera(65, innerWidth/innerHeight, 0.1, 500);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+scene.add(hemi);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(20, 40, 10);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
+dirLight.shadow.camera.left = -50;
+dirLight.shadow.camera.right = 50;
+dirLight.shadow.camera.top = 50;
+dirLight.shadow.camera.bottom = -50;
+scene.add(dirLight);
+
+const baseGroup = new THREE.Group();
+const cityGroup = new THREE.Group();
+cityGroup.visible = false;
+scene.add(baseGroup);
+scene.add(cityGroup);
+let currentMapId = 'base';
+
+// 일회성 이벤트(컷신) 트리거 플래그
+const flags = { giantZoneCutscenePlayed: false };
+
+// 등장씬(컷신) 재생 상태
+const cutscene = {
+  active: false,
+  waypoints: [],   // [{pos:{x,y,z}, look:{x,y,z}, dur}]
+  lines: [],       // [{start, end, text}] (초 단위, 컷신 시작 기준)
+  onComplete: null,
+  segIndex: 0,
+  segElapsed: 0,
+  totalElapsed: 0,
+  startPos: null,
+  startLook: null,
+};
+
+const INTERACTABLES = [];
+let currentInteractable = null;
+let mainHeli = null; 
+
+// 크기를 키우고, 헬기와 외부 위치를 넉넉하게 확장
+const MAP_DATA = {
+  groundSize: 180,
+  boundaryRadius: 75,
+  playerStart: {x:0, z:-35},
+  obstacles: [
+    { x: 6,  z: -35,  w:4, d:4, h:3, color:0x3d4a56 }, // 기지 내부 박스
+    { x: -6, z: -35,  w:4, d:4, h:3, color:0x3d4a56 },
+  ],
+  NPC_SPAWN_POINTS: [],
+  SHOP_LOCATION: { x:-7, z:-40 },
+  QUEST_GIVER_LOCATION: { x:7, z:-32 },
+  CAMERAMAN_NPC_LOCATION: { x:-7, z:-28 },
+  GIANT_CAMERAMAN_NPC_LOCATION: { x:0, z:-45 },
+  GATE_LOCATION: { x:0, z:-20 },
+  HELIPAD_LOCATION: { x:0, z:-8 }, // 문 밖 광장 (사진 속 눈밭 앞마당)
+  TITAN_LAB_LOCATION: { x:13, z:-27 }, // 타이탄 코어 연구실 (과학실 느낌의 소품)
+};
+
+const CITY_MAP = {
+  groundSize: 260,
+  boundaryRadius: 115,
+  playerStart: { x:0, z:10 },
+  obstacles: [
+    { x: 6,  z: 2,  w:3,   d:3,   h:3.2, color:0x4a4640 },
+    { x: -7, z: -4, w:4,   d:2.4, h:2.6, color:0x40403c },
+    { x: 3,  z: -10,w:2.6, d:2.6, h:4.0, color:0x4a4640 },
+    { x: -5, z: 8,  w:2.2, d:2.2, h:2.2, color:0x40403c },
+    { x: 10, z: -6, w:2.6, d:2.6, h:3.0, color:0x4a4640 },
+    { x: 42, z: -28,w:3.5, d:3.5, h:4.5, color:0x3a3632 },
+    { x: -40,z: -32,w:3.5, d:3.5, h:4.5, color:0x3a3632 },
+    { x: 5,  z: -52,w:4,   d:4,   h:5.0, color:0x3a3632 },
+  ],
+  // 일반 스키비디 토일렛 스폰구역 (도심 근처)
+  ENEMY_SPAWN_POINTS: [
+    { x:5,  z:-2 }, { x:-6, z:0 }, { x:0, z:-8 },
+    { x:8,  z:6 },  { x:-9, z:-6 }, { x:0, z:14 },
+  ],
+  // 대형 토일렛 스폰구역 (더 깊은 안쪽 폐허 지대)
+  GIANT_SPAWN_POINTS: [
+    { x:40, z:-28 }, { x:-38, z:-30 }, { x:0, z:-50 },
+    { x:46, z:14 },  { x:-46, z:14 },
+  ],
+  GIANT_ZONE_CENTER: { x:0, z:-30 },
+  GIANT_ZONE_RADIUS: 40,
+  // 보스 스폰 위치 — 폐허 지대 가장 깊은 곳
+  THREE_HEAD_SPAWN: { x:50, z:-85 },
+  GMAN_SPAWN: { x:-50, z:-90 },
+};
+
+const ITEM_DB = {
+  plunger:      { name:'뚫어뻥',           slot:'weapon', atk:5,  icon:'🪠', color:0xcc3d3d },
+  health_potion:{ name:'체력 포션',        slot:'consumable', heal:30, icon:'🧪', color:0xff6699 },
+  titan_core_raw:      { name:'타이탄의 코어(원석)',     slot:'material', icon:'🔷', color:0x2299ff },
+  titan_cameraman_core:{ name:'타이탄 카메라맨의 코어',   slot:'titan',    icon:'🔵', color:0x33aaff },
+};
+
+const PICKUP_SPAWNS = [];
+const COIN_SPAWNS = [];
+const SHOP_ITEMS = [ { itemId:'health_potion', price:15 }, { itemId:'titan_core_raw', price:1000 } ];
+
+// 보스 메쉬용 크기 상수 (타이탄과 동급 — TITAN_SCALE 선언보다 먼저 필요하므로 별도 정의)
+const BOSS_SCALE_TITAN = 4.6;
+
+// ---------- 몬스터 DB — 강할수록 경험치/코인/스킬트리 경험치도 더 많이 줌 ----------
+const ENEMY_DB = {
+  skibidi_toilet: {
+    name: '스키비디 토일렛', health: 26, speed: 2.6, contactDamage: 11,
+    attackInterval: 1.0, aggroRange: 13, killXP: 8, killCoins: 5, killSkillXP: 6, sizeScale: 1.0,
+  },
+  giant_toilet: {
+    name: '대형 토일렛', health: 90, speed: 2.0, contactDamage: 22,
+    attackInterval: 1.3, aggroRange: 16, killXP: 30, killCoins: 20, killSkillXP: 18, sizeScale: 2.1,
+  },
+  three_head_toilet: {
+    name: '3머리 토일렛', health: 1400, speed: 1.7, contactDamage: 35,
+    attackInterval: 2.2, aggroRange: 28, killXP: 900, killCoins: 450, killSkillXP: 220,
+    sizeScale: 4.6, isBoss: true, bossTier: '중간보스',
+  },
+  g_man: {
+    name: 'G맨 1.0', health: 2800, speed: 1.9, contactDamage: 45,
+    attackInterval: 2.6, aggroRange: 32, killXP: 2500, killCoins: 1200, killSkillXP: 450,
+    sizeScale: 4.85, isBoss: true, bossTier: '월드보스', hasLaser: true,
+  },
+};
+
+// ---------- 퀘스트 체인 (탐정 카메라맨에게 순서대로 받음) ----------
+const QUEST_CHAIN = ['quest_ruined_city_1', 'quest_ruined_city_2', 'quest_ruined_city_3'];
+
+const QUEST_DB = {
+  quest_ruined_city_1: {
+    id: 'quest_ruined_city_1', title: '무너진 도시 소탕전',
+    desc: '무너진 도시에 나타난 스키비디 토일렛 10마리를 처치해라.',
+    targetEnemy: 'skibidi_toilet', targetCount: 10, rewardXP: 150, rewardCoins: 100,
+    rewardItem: 'plunger',
+  },
+  quest_ruined_city_2: {
+    id: 'quest_ruined_city_2', title: '뚫어뻥 숙련',
+    desc: '뚫어뻥 던지기로 적을 15마리 처치해라 (종류 상관없음).',
+    targetEnemy: 'any', requireSource: 'weapon_skill', targetCount: 15, rewardXP: 220, rewardCoins: 150,
+  },
+  quest_ruined_city_3: {
+    id: 'quest_ruined_city_3', title: '대형 토일렛 소탕전',
+    desc: '무너진 도시 안쪽에 나타나는 대형 토일렛 20마리를 처치해라. 일반 토일렛보다 훨씬 강하니 조심해.',
+    targetEnemy: 'giant_toilet', targetCount: 20, rewardXP: 400, rewardCoins: 300,
+  },
+};
+
+let questProgressMap = {}; // { [questId]: { status:'not_started'|'active'|'completed', progress:0 } }
+function getQuestProgress(id) {
+  if (!questProgressMap[id]) questProgressMap[id] = { status:'not_started', progress:0 };
+  return questProgressMap[id];
+}
+function getCurrentQuestId() {
+  for (const id of QUEST_CHAIN) {
+    if (getQuestProgress(id).status !== 'completed') return id;
+  }
+  return null; // 체인 전부 완료
+}
+
+let jobQuestState = { status: 'not_started' }; 
+
+const JOB_REQUIREMENTS = {
+  cameraman: { level: 5, coins: 100, weaponSkillUses: 10, toiletKills: 5 },
+};
+
+const CLASS_DB = {
+  cameraman: {
+    name: '카메라맨',
+    maxTreeLevel: 5,
+    skills: {
+      power_punch: { name:'강력펀치', icon:'👊', unlockLevel:0, desc:'강한 근접 일격 (처음부터 사용 가능)' },
+      rage:        { name:'분노',     icon:'🔥', unlockLevel:3, desc:'일정 시간 이동속도·공격력·공속 상승' },
+      support:     { name:'지원요청', icon:'📣', unlockLevel:5, desc:'카메라맨 2명 소환 (내 스펙의 0.6배, 공격력/무기뎀 반영)' },
+    },
+  },
+  cameraman2: {
+    name: '카메라맨 2.0',
+    maxTreeLevel: 1,
+    skills: {
+      camera_gun: { name:'카메라건 사격', icon:'🔫', unlockLevel:0, desc:'카메라건으로 원거리 사격 (기본 스킬)' },
+      reload:     { name:'재장전',       icon:'🔃', unlockLevel:0, desc:'이동속도 상승 + 체력 즉시 회복' },
+      support2:   { name:'지원요청',     icon:'📣', unlockLevel:0, desc:'카메라맨 2.0 3명 소환 (내 스펙의 0.7배)' },
+    },
+    healthBonus: 30,
+    defBonus: 5,
+  },
+  giant_cameraman: {
+    name: '대형카메라맨',
+    maxTreeLevel: 3,
+    skills: {
+      power_punch_g: { name:'강력한 펀치', icon:'👊', unlockLevel:0, desc:'강한 근접 일격 (처음부터 사용 가능)' },
+      body_slam:     { name:'몸통박치기', icon:'💥', unlockLevel:2, desc:'주변에 피해를 주고, 자신과 비슷하거나 작은 적을 기절시킴' },
+      grab_throw:    { name:'집어던지기', icon:'🤾', unlockLevel:3, desc:'자신보다 작은 적을 집어서 던짐' },
+    },
+    healthBonus: 50,
+    defBonus: 8,
+    sizeScale: 1.85, // 자신의 '덩치' — 이 값 이하인 적에게만 기절/집어던지기 적용
+  },
+};
+
+const obstacleMeshes = [];
+const animatedCharacters = []; // 걷는 애니메이션 업데이트용 배열
+
+// =========================================================================
+// 공통 로블록스 폼 캐릭터 생성 (팔/다리/애니메이션 지원)
+// =========================================================================
+function createBipedCameramanMesh(opts = {}) {
+  const { bodyColor = 0x33363d, legColor = 0x111111, armColor = bodyColor, headColor = 0x1c1c1c,
+          hasHat = false, isDetective = false, hasSuit = isDetective, hasRigLights = false } = opts;
+  const g = new THREE.Group();
+  const visualRoot = new THREE.Group(); // 물리(g.position)와 걷기 bob을 분리하기 위한 내부 그룹
+  g.add(visualRoot);
+  
+  const createLimb = (w, h, d, col) => {
+    const lg = new THREE.Group();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color: col, roughness:0.8 }));
+    mesh.position.y = -h/2; // 피벗 포인트를 위쪽으로
+    mesh.castShadow = true;
+    lg.add(mesh);
+    return lg;
+  };
+
+  // 몸통
+  const torsoGeom = new THREE.BoxGeometry(1.0, 1.2, 0.5);
+  const torsoMat = new THREE.MeshStandardMaterial({color: hasSuit ? 0x111111 : bodyColor, roughness: 0.8});
+  const torso = new THREE.Mesh(torsoGeom, torsoMat);
+  torso.position.y = 1.7; // 다리(1.1) + 몸통절반(0.6)
+  torso.castShadow = true;
+  visualRoot.add(torso);
+
+  if (hasSuit) {
+    // 하얀 셔츠, 넥타이 장식
+    const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.21, 0.51), new THREE.MeshStandardMaterial({color: 0xe2e8f0}));
+    shirt.position.y = 1.7;
+    visualRoot.add(shirt);
+    const tie = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.6, 0.52), new THREE.MeshStandardMaterial({color: 0x050505}));
+    tie.position.y = 1.9;
+    visualRoot.add(tie);
+    const tieKnot = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.53), new THREE.MeshStandardMaterial({color: 0x050505}));
+    tieKnot.position.y = 2.16;
+    visualRoot.add(tieKnot);
+  }
+
+  // 양팔
+  const armL = createLimb(0.4, 1.2, 0.4, hasSuit ? 0x111111 : armColor);
+  armL.position.set(-0.75, 2.3, 0); 
+  visualRoot.add(armL);
+
+  const armR = createLimb(0.4, 1.2, 0.4, hasSuit ? 0x111111 : armColor);
+  armR.position.set(0.75, 2.3, 0);
+  visualRoot.add(armR);
+
+  // 양다리
+  const legL = createLimb(0.45, 1.1, 0.45, hasSuit ? 0x111111 : legColor);
+  legL.position.set(-0.275, 1.1, 0);
+  visualRoot.add(legL);
+
+  const legR = createLimb(0.45, 1.1, 0.45, hasSuit ? 0x111111 : legColor);
+  legR.position.set(0.275, 1.1, 0);
+  visualRoot.add(legR);
+
+  // 머리 (카메라)
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 2.3, 0);
+  
+  const camMat = new THREE.MeshStandardMaterial({ color: headColor, roughness:0.4, metalness:0.3 });
+  const headBox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.5), camMat);
+  headBox.position.y = 0.25; headBox.castShadow = true; headGroup.add(headBox);
+  
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.4, 12), camMat);
+  lens.rotation.x = Math.PI/2;
+  lens.position.set(0, 0.25, 0.35);
+  lens.castShadow = true; headGroup.add(lens);
+  const lensGlass = new THREE.Mesh(new THREE.CircleGeometry(0.13, 16), new THREE.MeshStandardMaterial({ color:0x0d1a22, roughness:0.15, metalness:0.6, emissive:0x1c3a4a, emissiveIntensity:0.4 }));
+  lensGlass.position.set(0, 0.25, 0.56);
+  headGroup.add(lensGlass);
+  const lensRing = new THREE.Mesh(new THREE.TorusGeometry(0.155, 0.025, 8, 16), new THREE.MeshStandardMaterial({ color:0x0a0a0a, metalness:0.7, roughness:0.25 }));
+  lensRing.position.set(0, 0.25, 0.55);
+  headGroup.add(lensRing);
+
+  if (hasRigLights) {
+    // 사진 속 조명 리그 느낌: 헤드 위에 사각 조명 패널 두 개 + 중앙 안테나
+    const rigMat = new THREE.MeshStandardMaterial({ color:0x1a1c20, roughness:0.5, metalness:0.6 });
+    const lightMat = new THREE.MeshStandardMaterial({ color:0xfff6d8, emissive:0xfff6d8, emissiveIntensity:1.3 });
+    [-1, 1].forEach(side => {
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.32, 0.07), rigMat);
+      arm.position.set(side*0.3, 0.62, 0.02);
+      headGroup.add(arm);
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.05), lightMat);
+      panel.position.set(side*0.3, 0.82, 0.02);
+      headGroup.add(panel);
+      const panelFrame = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.03), rigMat);
+      panelFrame.position.set(side*0.3, 0.82, -0.005);
+      headGroup.add(panelFrame);
+    });
+    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.34, 6), rigMat);
+    antenna.position.set(0, 0.72, -0.1);
+    headGroup.add(antenna);
+    const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), new THREE.MeshStandardMaterial({ color:0xff4455, emissive:0xff2233, emissiveIntensity:0.8 }));
+    antennaTip.position.set(0, 0.9, -0.1);
+    headGroup.add(antennaTip);
+  }
+
+  if (isDetective || hasHat) {
+    const hatMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness:0.9 });
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.05, 16), hatMat);
+    brim.position.y = 0.52; headGroup.add(brim);
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.3, 16), hatMat);
+    crown.position.y = 0.7; headGroup.add(crown);
+  }
+
+  visualRoot.add(headGroup);
+
+  g.userData = { armL, armR, legL, legR, headGroup, torso, visualRoot, walkTime: 0, idleTime: Math.random()*5, isAttacking: false };
+  animatedCharacters.push(g); // 애니메이션 업데이트 목록에 등록
+  return g;
+}
+
+// 걷기, 대기 애니메이션 — bob은 visualRoot에만 적용해 물리 y좌표(g.position.y)와 절대 충돌하지 않음
+function animateBiped(mesh, speed, dt, isMoving) {
+  const parts = mesh.userData;
+  if (!parts || !parts.armL) return;
+
+  if (isMoving) {
+    parts.walkTime += dt * speed * 2.0;
+    const angle = Math.sin(parts.walkTime) * 0.8;
+    
+    if (!parts.isAttacking) parts.armR.rotation.x = angle;
+    parts.armL.rotation.x = -angle;
+    parts.legL.rotation.x = angle;
+    parts.legR.rotation.x = -angle;
+    parts.visualRoot.position.y = Math.abs(Math.sin(parts.walkTime * 2)) * 0.15;
+  } else {
+    parts.idleTime += dt;
+    const breathe = Math.sin(parts.idleTime * 2) * 0.03;
+    parts.visualRoot.position.y = breathe;
+    
+    // 서서히 원래 위치로 (공격 중이면 오른팔 제외)
+    if (!parts.isAttacking) parts.armR.rotation.x += (0 - parts.armR.rotation.x) * 0.2;
+    parts.armL.rotation.x += (0 - parts.armL.rotation.x) * 0.2;
+    parts.legL.rotation.x += (0 - parts.legL.rotation.x) * 0.2;
+    parts.legR.rotation.x += (0 - parts.legR.rotation.x) * 0.2;
+  }
+}
+
+// =========================================================================
+// 기지 바닥 및 사진 기반 외형 구축
+// =========================================================================
+function buildGround() {
+  const size = MAP_DATA.groundSize;
+  
+  // 전체 눈밭
+  const groundGeo = new THREE.PlaneGeometry(size, size);
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0xeff3f8, roughness:0.9 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  baseGroup.add(ground);
+  
+  // 헬기장까지 뻗은 통로 (아스팔트/콘크리트 길)
+  const road = new THREE.Mesh(
+    new THREE.PlaneGeometry(16, size),
+    new THREE.MeshStandardMaterial({ color: 0x9ba2a8, roughness: 1.0 })
+  );
+  road.rotation.x = -Math.PI/2;
+  road.position.y = 0.01;
+  road.receiveShadow = true;
+  baseGroup.add(road);
+}
+buildGround();
+
+let gateDoorL, gateDoorR, gateDoorObstacles = [];
+function buildGateAndBase() {
+  const slopeMat = new THREE.MeshStandardMaterial({ color: 0x7c858e, roughness: 0.95 }); // 차가운 톤의 콘크리트
+
+  // 좌측 거대 경사 벽
+  const slopeL = new THREE.Mesh(new THREE.BoxGeometry(40, 30, 10), slopeMat);
+  slopeL.position.set(-35, 5, -20);
+  slopeL.rotation.z = -0.6; // 안쪽으로 비스듬하게
+  slopeL.castShadow = true; slopeL.receiveShadow = true;
+  baseGroup.add(slopeL);
+  
+  // 우측 거대 경사 벽
+  const slopeR = new THREE.Mesh(new THREE.BoxGeometry(40, 30, 10), slopeMat);
+  slopeR.position.set(35, 5, -20);
+  slopeR.rotation.z = 0.6;
+  slopeR.castShadow = true; slopeR.receiveShadow = true;
+  baseGroup.add(slopeR);
+
+  // 안테나(기둥)들
+  const antMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.6 });
+  const antL = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.8, 35, 8), antMat);
+  antL.position.set(-15, 20, -18);
+  antL.rotation.z = -0.4;
+  baseGroup.add(antL);
+  
+  const antR = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.8, 35, 8), antMat);
+  antR.position.set(15, 20, -18);
+  antR.rotation.z = 0.4;
+  baseGroup.add(antR);
+
+  // 뒷면 벽
+  const backWall = new THREE.Mesh(new THREE.BoxGeometry(80, 30, 5), slopeMat);
+  backWall.position.set(0, 15, -55);
+  backWall.receiveShadow = true;
+  baseGroup.add(backWall);
+
+  // 중앙 거대 게이트 (문)
+  const doorGeo = new THREE.BoxGeometry(5, 12, 1.5);
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x2f333a, metalness: 0.7, roughness: 0.4 });
+  gateDoorL = new THREE.Mesh(doorGeo, doorMat);
+  gateDoorL.position.set(-2.5, 6, -20);
+  gateDoorL.castShadow = true;
+  baseGroup.add(gateDoorL);
+  
+  gateDoorR = new THREE.Mesh(doorGeo, doorMat);
+  gateDoorR.position.set(2.5, 6, -20);
+  gateDoorR.castShadow = true;
+  baseGroup.add(gateDoorR);
+
+  gateDoorObstacles = [
+    { mesh: gateDoorL, x: -2.5, z: -20, w: 5, d: 1.5 },
+    { mesh: gateDoorR, x: 2.5, z: -20, w: 5, d: 1.5 },
+  ];
+  obstacleMeshes.push(...gateDoorObstacles);
+  obstacleMeshes.push({ mesh: slopeL, x: -35, z: -20, w: 40, d: 10 }); // 실제 메시 크기와 일치
+  obstacleMeshes.push({ mesh: slopeR, x: 35, z: -20, w: 40, d: 10 });
+  obstacleMeshes.push({ mesh: backWall, x: 0, z: -55, w: 80, d: 5 });
+}
+buildGateAndBase();
+
+function buildObstacles() {
+  MAP_DATA.obstacles.forEach(o => {
+    const geo = new THREE.BoxGeometry(o.w, o.h, o.d);
+    const mat = new THREE.MeshStandardMaterial({ color:o.color, roughness:0.7 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(o.x, o.h/2, o.z);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    baseGroup.add(mesh);
+    obstacleMeshes.push({ mesh, x:o.x, z:o.z, w:o.w, d:o.d });
+  });
+
+  // 스폰 구역 뒷쪽 둥근 경계
+  const n = 12, r = MAP_DATA.boundaryRadius;
+  for (let i=0;i<n;i++) {
+    const ang = (i/n)*Math.PI; // 반원만
+    const px = Math.cos(ang)*r, pz = Math.sin(ang)*r;
+    if (pz < -10) continue; // 게이트 쪽 제외
+    const geo = new THREE.CylinderGeometry(1.5, 1.5, 8, 10);
+    const mat = new THREE.MeshStandardMaterial({ color:0x555b63, roughness:0.8 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(px, 4, pz);
+    mesh.castShadow = true;
+    baseGroup.add(mesh);
+    obstacleMeshes.push({ mesh, x:px, z:pz, w:3, d:3 });
+  }
+}
+buildObstacles();
+
+function buildShop() {
+  const s = MAP_DATA.SHOP_LOCATION;
+  const group = new THREE.Group();
+
+  const counterMat = new THREE.MeshStandardMaterial({ color:0x6b4a2f, roughness:0.8 });
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.1, 1.4), counterMat);
+  counter.position.y = 0.55;
+  counter.castShadow = true; counter.receiveShadow = true;
+  group.add(counter);
+
+  const roofMat = new THREE.MeshStandardMaterial({ color:0xff5b6c, roughness:0.6 });
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.2, 1.8), roofMat);
+  roof.position.y = 2.3;
+  roof.castShadow = true;
+  group.add(roof);
+
+  const poleMat = new THREE.MeshStandardMaterial({ color:0x333333 });
+  [[-1.5,-0.7],[1.5,-0.7],[-1.5,0.7],[1.5,0.7]].forEach(([px,pz]) => {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,1.8,8), poleMat);
+    pole.position.set(px, 1.4, pz);
+    pole.castShadow = true;
+    group.add(pole);
+  });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 96;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(10,12,20,0.0)';
+  ctx.fillRect(0,0,256,96);
+  ctx.font = 'bold 40px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffe066';
+  ctx.fillText('🏪 상점', 128, 55);
+  const tex = new THREE.CanvasTexture(canvas);
+  const spriteMat = new THREE.SpriteMaterial({ map:tex, transparent:true });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.scale.set(2.4, 0.9, 1);
+  sprite.position.y = 3.0;
+  group.add(sprite);
+
+  group.position.set(s.x, 0, s.z);
+  baseGroup.add(group);
+  obstacleMeshes.push({ mesh:group, x:s.x, z:s.z, w:3.4, d:1.6 });
+}
+buildShop();
+
+function addFloatingLabel(parentGroup, text, color, yOffset) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128; canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'bold 90px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = color;
+  ctx.fillText(text, 64, 95);
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map:tex, transparent:true });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(0.6, 0.6, 1);
+  sprite.position.y = yOffset;
+  parentGroup.add(sprite);
+  return sprite;
+}
+
+// NPC 배치
+const qg = MAP_DATA.QUEST_GIVER_LOCATION;
+const questGiverNPC = createBipedCameramanMesh({ isDetective: true });
+questGiverNPC.position.set(qg.x, 0, qg.z);
+questGiverNPC.rotation.y = -Math.PI / 4;
+baseGroup.add(questGiverNPC);
+const questMarker = addFloatingLabel(questGiverNPC, '❗', '#ffd166', 3.4);
+
+// 타이탄 코어 연구실 소품 (받침대 + 안정화 장치 + 코어 홀더) — "과학실"의 느낌을 주는 조형물
+function buildTitanLabStation() {
+  const p = MAP_DATA.TITAN_LAB_LOCATION;
+  const group = new THREE.Group();
+  group.position.set(p.x, 0, p.z);
+
+  const baseMat = new THREE.MeshStandardMaterial({ color:0x2a2f38, roughness:0.6, metalness:0.4 });
+  const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.5, 1.0, 16), baseMat);
+  pedestal.position.y = 0.5; pedestal.castShadow = true; group.add(pedestal);
+
+  const ringMat = new THREE.MeshStandardMaterial({ color:0x3a4048, roughness:0.4, metalness:0.7 });
+  const ring1 = new THREE.Mesh(new THREE.TorusGeometry(0.85, 0.07, 8, 24), ringMat);
+  ring1.position.y = 1.55; ring1.rotation.x = Math.PI/2; group.add(ring1);
+  const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.05, 8, 24), ringMat);
+  ring2.position.y = 1.9; ring2.rotation.x = Math.PI/2; group.add(ring2);
+
+  // 안정화 장치 안의 코어 (은은하게 발광하는 파란 구슬)
+  const coreMat = new THREE.MeshStandardMaterial({ color:0x2fa8ff, emissive:0x2fa8ff, emissiveIntensity:1.2, roughness:0.3 });
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 16), coreMat);
+  core.position.y = 1.7; group.add(core);
+  const coreLight = new THREE.PointLight(0x2fa8ff, 1.6, 8);
+  coreLight.position.y = 1.7; group.add(coreLight);
+
+  // 콘솔 패널
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.1, 0.35), baseMat);
+  panel.position.set(1.6, 0.55, 0); panel.rotation.y = -0.5; group.add(panel);
+  const screenMat = new THREE.MeshStandardMaterial({ color:0x1c5f8c, emissive:0x2fa8ff, emissiveIntensity:0.6 });
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.4), screenMat);
+  screen.position.set(1.95, 0.85, 0.16); screen.rotation.y = -0.5; group.add(screen);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 320; canvas.height = 90;
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'bold 30px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#7fd4ff';
+  ctx.fillText('🔬 타이탄 코어 연구실', 160, 50);
+  const tex = new THREE.CanvasTexture(canvas);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true }));
+  sprite.scale.set(4.4, 1.24, 1);
+  sprite.position.set(0, 3.1, 0);
+  group.add(sprite);
+
+  group.userData = { core, coreLight, phase: Math.random()*10 };
+  baseGroup.add(group);
+  return group;
+}
+const titanLabStation = buildTitanLabStation();
+
+// 과학자 카메라맨 NPC (타이탄 코어 연구실 담당 — 레벨 10 이상, 코어 원석 제출 시 타이탄 카메라맨의 코어 제작)
+const scientistPos = { x: MAP_DATA.TITAN_LAB_LOCATION.x - 1.9, z: MAP_DATA.TITAN_LAB_LOCATION.z + 1.1 };
+const scientistNPC = createBipedCameramanMesh({ bodyColor:0xe7edf3, legColor:0x2a3038, headColor:0x171a1e });
+scientistNPC.position.set(scientistPos.x, 0, scientistPos.z);
+scientistNPC.rotation.y = Math.PI / 3;
+baseGroup.add(scientistNPC);
+const scientistMarker = addFloatingLabel(scientistNPC, '🔬', '#7fd4ff', 3.4);
+INTERACTABLES.push(
+  { x: scientistPos.x, z: scientistPos.z, radius: 3.2, label: '💬 대화하기 (E / 탭)', mapId: 'base', onInteract: openScientistDialog }
+);
+function updateScientistMarker() {
+  scientistMarker.visible = !(titanState.unlocked || playerStats.equipment.titan);
+}
+function updateTitanLabStation(dt) {
+  titanLabStation.userData.phase += dt;
+  const pulse = 1.0 + Math.sin(titanLabStation.userData.phase * 1.6) * 0.35;
+  titanLabStation.userData.core.material.emissiveIntensity = 1.2 * pulse;
+  titanLabStation.userData.coreLight.intensity = 1.6 * pulse;
+}
+
+function updateQuestMarker() {
+  let text = '❗', color = '#ffd166';
+  const curId = getCurrentQuestId();
+  if (!curId) {
+    text = ''; // 체인 전부 완료
+  } else {
+    const qp = getQuestProgress(curId);
+    const q = QUEST_DB[curId];
+    if (qp.status === 'active' && qp.progress < q.targetCount) { text = '⋯'; color = '#9dffc4'; }
+    else if (qp.status === 'active') { text = '✅'; color = '#3cff8b'; }
+  }
+  questMarker.material.map.dispose();
+  const canvas = document.createElement('canvas');
+  canvas.width = 128; canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'bold 90px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = color;
+  ctx.fillText(text, 64, 95);
+  questMarker.material.map = new THREE.CanvasTexture(canvas);
+  questMarker.material.needsUpdate = true;
+}
+
+const gateState = { open:false };
+function updateGate(dt) {
+  if (currentMapId !== 'base') return;
+  const gateData = MAP_DATA.GATE_LOCATION;
+  const dist = Math.hypot(player.position.x - gateData.x, player.position.z - gateData.z);
+  const shouldOpen = dist < 10;
+  if (shouldOpen && !gateState.open) {
+    gateState.open = true;
+    gateDoorObstacles.forEach(ref => {
+      const idx = obstacleMeshes.indexOf(ref);
+      if (idx > -1) obstacleMeshes.splice(idx, 1);
+    });
+  } else if (!shouldOpen && gateState.open) {
+    gateState.open = false;
+    obstacleMeshes.push(...gateDoorObstacles);
+  }
+  const targetLX = gateState.open ? -7 : -2.5;
+  const targetRX = gateState.open ? 7 : 2.5;
+  gateDoorL.position.x += (targetLX - gateDoorL.position.x) * 0.08;
+  gateDoorR.position.x += (targetRX - gateDoorR.position.x) * 0.08;
+}
+
+// 헬기 (문 밖 배치)
+const hp = MAP_DATA.HELIPAD_LOCATION;
+const heliGroup = new THREE.Group();
+
+const heliBodyMat = new THREE.MeshStandardMaterial({ color:0x1a1c20, roughness:0.7, metalness:0.4 });
+const heliBody = new THREE.Mesh(new THREE.BoxGeometry(4.5, 3.5, 8.0), heliBodyMat);
+heliBody.position.y = 3.5; heliBody.castShadow = true; heliGroup.add(heliBody);
+
+const wingMat = new THREE.MeshStandardMaterial({ color:0x22252a, roughness:0.6 });
+const wings = new THREE.Mesh(new THREE.BoxGeometry(10.0, 0.4, 3.0), wingMat);
+wings.position.set(0, 3.0, 1.0); wings.castShadow = true; heliGroup.add(wings);
+
+const finL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.0, 2.5), wingMat);
+finL.position.set(-4.8, 2.5, 1.0); finL.rotation.x = 0.2; heliGroup.add(finL);
+const finR = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.0, 2.5), wingMat);
+finR.position.set(4.8, 2.5, 1.0); finR.rotation.x = 0.2; heliGroup.add(finR);
+
+const cockpitMat = new THREE.MeshStandardMaterial({ color:0xd0d5db, roughness:0.4, metalness:0.2 });
+const cockpit = new THREE.Mesh(new THREE.BoxGeometry(3.5, 2.5, 4.0), cockpitMat);
+cockpit.position.set(0, 4.2, 4.5); cockpit.castShadow = true; heliGroup.add(cockpit);
+
+const glass = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.5, 0.2), new THREE.MeshStandardMaterial({ color:0x111111, roughness:0.1, metalness:0.8 }));
+glass.position.set(0, 4.2, 6.51); heliGroup.add(glass);
+
+const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 1.0, 12), heliBodyMat);
+mast.position.set(0, 5.5, 1.0); heliGroup.add(mast);
+
+const blades = new THREE.Group();
+const rotorMat = new THREE.MeshStandardMaterial({ color:0x111111, roughness:0.8 });
+for(let i=0; i<6; i++) {
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.1, 14.0), rotorMat);
+  blade.position.set(0, 0, 7.0);
+  const pivot = new THREE.Group(); pivot.rotation.y = (Math.PI*2 / 6) * i;
+  pivot.add(blade); blades.add(pivot);
+}
+blades.position.set(0, 6.0, 1.0); heliGroup.add(blades);
+heliGroup.userData.blades = blades;
+mainHeli = heliGroup;
+
+heliGroup.position.set(hp.x, 0, hp.z);
+heliGroup.rotation.y = -Math.PI / 6; 
+baseGroup.add(heliGroup);
+
+// 조종사 NPC (문 밖 헬기 주변 배치)
+const pilotNPC = createBipedCameramanMesh({ bodyColor:0x556052, legColor:0x333333 });
+pilotNPC.position.set(hp.x - 7.0, 0, hp.z + 3.0);
+pilotNPC.rotation.y = Math.PI / 3;
+baseGroup.add(pilotNPC);
+
+// 전직 트레이너
+const camNpcPos = MAP_DATA.CAMERAMAN_NPC_LOCATION;
+const cameramanTrainerNPC = createBipedCameramanMesh({ bodyColor:0x3a6ea5 });
+cameramanTrainerNPC.position.set(camNpcPos.x, 0, camNpcPos.z);
+baseGroup.add(cameramanTrainerNPC);
+
+// 대형카메라맨 (2차전직 분기 NPC) — 덩치를 키우고 어두운 색, 큰 카메라건을 들고 있음
+const giantCamPos = MAP_DATA.GIANT_CAMERAMAN_NPC_LOCATION;
+const giantCameramanNPC = createBipedCameramanMesh({ bodyColor:0x161616, legColor:0x0a0a0a, headColor:0x0a0a0a, hasSuit:true, hasRigLights:true });
+giantCameramanNPC.scale.set(1.6, 1.6, 1.6);
+giantCameramanNPC.position.set(giantCamPos.x, 0, giantCamPos.z);
+{
+  const gunMat = new THREE.MeshStandardMaterial({ color:0x1a1a1a, roughness:0.4, metalness:0.6 });
+  const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 1.0), gunMat);
+  gunBody.position.set(0, -0.5, 0.5);
+  giantCameramanNPC.userData.armR.add(gunBody);
+  const gunBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.6, 8), gunMat);
+  gunBarrel.rotation.x = Math.PI/2;
+  gunBarrel.position.set(0, -0.5, 1.1);
+  giantCameramanNPC.userData.armR.add(gunBarrel);
+}
+baseGroup.add(giantCameramanNPC);
+
+INTERACTABLES.push(
+  { x:MAP_DATA.SHOP_LOCATION.x, z:MAP_DATA.SHOP_LOCATION.z, radius:3.2, label:'🏪 상점 열기 (E / 탭)', mapId:'base', onInteract: openShop },
+  { x:qg.x, z:qg.z, radius:3.0, label:'💬 대화하기 (E / 탭)', mapId:'base', onInteract: openQuestDialog },
+  { x:pilotNPC.position.x, z:pilotNPC.position.z, radius:3.0, label:'💬 이동하기 (E / 탭)', mapId:'base', onInteract: openTravelDialog },
+  { x:camNpcPos.x, z:camNpcPos.z, radius:3.0, label:'💬 대화하기 (E / 탭)', mapId:'base', onInteract: openJobDialog },
+  { x:giantCamPos.x, z:giantCamPos.z, radius:3.5, label:'💬 대화하기 (E / 탭)', mapId:'base', onInteract: openGiantJobDialog },
+);
+
+// 플레이어 캐릭터 생성
+const player = createBipedCameramanMesh({ bodyColor:0x4da3ff, legColor:0x1a1a1a });
+player.position.set(MAP_DATA.playerStart.x, 0, MAP_DATA.playerStart.z);
+
+// 뚫어뻥 무기 구성 후 오른팔에 추가
+const weaponMesh = new THREE.Group();
+const plungerHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.7, 8), new THREE.MeshStandardMaterial({ color:0x8a5a2b }));
+plungerHandle.position.y = 0.35; plungerHandle.castShadow = true; weaponMesh.add(plungerHandle);
+const plungerCup = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 10, 0, Math.PI*2, 0, Math.PI/2), new THREE.MeshStandardMaterial({ color:0xcc3d3d, roughness:0.7 }));
+plungerCup.rotation.x = Math.PI; plungerCup.position.y = 0.72; plungerCup.castShadow = true; weaponMesh.add(plungerCup);
+
+// 오른팔(armR)의 끝 부분에 부착
+weaponMesh.position.set(0, -0.6, 0.3);
+weaponMesh.rotation.x = Math.PI/2; 
+weaponMesh.name = 'weaponMesh';
+weaponMesh.visible = false; 
+player.userData.armR.add(weaponMesh);
+
+// ---------- 카메라맨 2.0 전용 장비: 제트팩 + 헤드셋 (승급 전엔 숨김) ----------
+const jetpackGroup = new THREE.Group();
+const jetpackMat = new THREE.MeshStandardMaterial({ color:0x2a2d33, roughness:0.5, metalness:0.5 });
+const jetpackFrame = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.75, 0.3), jetpackMat);
+jetpackFrame.position.set(0, 0, -0.05);
+jetpackFrame.castShadow = true;
+jetpackGroup.add(jetpackFrame);
+
+const thrusterMat = new THREE.MeshStandardMaterial({ color:0x1a1a1a, roughness:0.4, metalness:0.6 });
+const thrusterL = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.85, 10), thrusterMat);
+thrusterL.position.set(-0.22, -0.05, -0.12);
+thrusterL.castShadow = true;
+jetpackGroup.add(thrusterL);
+const thrusterR = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.85, 10), thrusterMat);
+thrusterR.position.set(0.22, -0.05, -0.12);
+thrusterR.castShadow = true;
+jetpackGroup.add(thrusterR);
+
+// 배기구(불꽃 이펙트 스폰 기준점)
+const exhaustL = new THREE.Object3D(); exhaustL.position.set(-0.22, -0.48, -0.12); jetpackGroup.add(exhaustL);
+const exhaustR = new THREE.Object3D(); exhaustR.position.set(0.22, -0.48, -0.12); jetpackGroup.add(exhaustR);
+
+jetpackGroup.position.set(0, 1.75, -0.35); // 등 쪽(뒤)에 부착
+jetpackGroup.visible = false;
+player.userData.visualRoot.add(jetpackGroup);
+player.userData.jetpackGroup = jetpackGroup;
+player.userData.jetpackExhausts = [exhaustL, exhaustR];
+
+// 헤드셋 (머리 양쪽에 작은 이어피스 + 마이크)
+const headsetGroup = new THREE.Group();
+const headsetMat = new THREE.MeshStandardMaterial({ color:0x111111, roughness:0.5 });
+const band = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.03, 8, 16, Math.PI), headsetMat);
+band.rotation.z = Math.PI;
+band.position.set(0, 0.35, 0);
+headsetGroup.add(band);
+const earL = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), headsetMat);
+earL.position.set(-0.33, 0.05, 0);
+headsetGroup.add(earL);
+const earR = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), headsetMat);
+earR.position.set(0.33, 0.05, 0);
+headsetGroup.add(earR);
+const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.35, 6), headsetMat);
+mic.rotation.z = Math.PI/2.5;
+mic.position.set(0.18, -0.1, 0.25);
+headsetGroup.add(mic);
+headsetGroup.visible = false;
+player.userData.headGroup.add(headsetGroup);
+player.userData.headsetGroup = headsetGroup;
+
+scene.add(player);
+
+const playerState = { velocityY: 0, onGround: true, speed: 7.0, radius: 0.5, health: 100, maxHealth: 100 };
+
+const regenState = { idleTime: 0 };
+const REGEN_DELAY = 5.0;   // 이 시간(초) 동안 피격이 없으면 회복 시작
+const REGEN_RATE = 0.03;   // 초당 최대체력의 3%씩 회복
+
+function takeDamage(amount) {
+  if (titanState.shieldActive) amount *= 0.4; // 방패모드: 피해 60% 감소
+  playerState.health = Math.max(0, playerState.health - amount);
+  regenState.idleTime = 0;
+  updateHUD();
+  if (playerState.health <= 0) onPlayerDown();
+}
+
+function heal(amount) {
+  playerState.health = Math.min(playerState.maxHealth, playerState.health + amount);
+  updateHUD();
+}
+
+function onPlayerDown() {
+  centerMsg('쓰러졌다... 기지에서 회복 중');
+  gameRunning = false;
+  setTimeout(() => {
+    playerState.health = playerState.maxHealth;
+    travelTo('base');
+    gameRunning = true;
+    updateHUD();
+  }, 1800);
+}
+
+function buildCityGround() {
+  const size = CITY_MAP.groundSize;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#5a5650';
+  ctx.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 260; i++) {
+    ctx.fillStyle = `rgba(${30+Math.random()*30},${28+Math.random()*30},${25+Math.random()*28},0.5)`;
+    const s = 4 + Math.random()*22;
+    ctx.fillRect(Math.random()*512, Math.random()*512, s, s);
+  }
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(size, size),
+    new THREE.MeshStandardMaterial({ map:new THREE.CanvasTexture(canvas), roughness:1.0 })
+  );
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  cityGroup.add(ground);
+
+  cityGroup.add(new THREE.HemisphereLight(0xffcf9e, 0x2a1f1a, 0.6));
+  const cityLight = new THREE.DirectionalLight(0xffb877, 0.9);
+  cityLight.position.set(-15, 25, 10);
+  cityGroup.add(cityLight);
+}
+buildCityGround();
+
+const cityObstacleMeshes = [];
+function buildCityObstacles() {
+  CITY_MAP.obstacles.forEach(o => {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(o.w, o.h, o.d),
+      new THREE.MeshStandardMaterial({ color:o.color, roughness:0.9 })
+    );
+    mesh.position.set(o.x, o.h/2, o.z);
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    cityGroup.add(mesh);
+    cityObstacleMeshes.push({ mesh, x:o.x, z:o.z, w:o.w, d:o.d });
+  });
+}
+buildCityObstacles();
+
+function createSkibidiToiletMesh() {
+  const g = new THREE.Group();
+  const bowlMat = new THREE.MeshStandardMaterial({ color:0xffffff, roughness:0.3 });
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 0.6, 16), bowlMat);
+  bowl.position.y = 0.5; bowl.castShadow = true; g.add(bowl);
+  const tank = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.35), bowlMat);
+  tank.position.set(0, 1.1, -0.35); tank.castShadow = true; g.add(tank);
+  const headMat = new THREE.MeshStandardMaterial({ color:0xe8b98a });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 16), headMat);
+  head.position.set(0, 1.05, 0.15); head.castShadow = true; g.add(head);
+  const eyeMat = new THREE.MeshStandardMaterial({ color:0x111111 });
+  [-0.12, 0.12].forEach(ex => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), eyeMat);
+    eye.position.set(ex, 1.1, 0.42);
+    g.add(eye);
+  });
+  return g;
+}
+
+// 대형 토일렛 — 일반형을 크게 키우고 어둡고 위협적인 색으로 재도색
+function createGiantToiletMesh() {
+  const g = new THREE.Group();
+  const bowlMat = new THREE.MeshStandardMaterial({ color:0x6b6f75, roughness:0.5, metalness:0.2 });
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 0.6, 16), bowlMat);
+  bowl.position.y = 0.5; bowl.castShadow = true; g.add(bowl);
+  const tank = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.35), bowlMat);
+  tank.position.set(0, 1.1, -0.35); tank.castShadow = true; g.add(tank);
+  const headMat = new THREE.MeshStandardMaterial({ color:0xb5654a });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 16), headMat);
+  head.position.set(0, 1.05, 0.15); head.castShadow = true; g.add(head);
+  const eyeMat = new THREE.MeshStandardMaterial({ color:0xff3344, emissive:0xff2233, emissiveIntensity:0.7 });
+  [-0.12, 0.12].forEach(ex => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), eyeMat);
+    eye.position.set(ex, 1.1, 0.42);
+    g.add(eye);
+  });
+  g.scale.set(2.1, 2.1, 2.1); // 일반 토일렛보다 훨씬 큼
+  return g;
+}
+
+// ---------- 중간보스: 3머리 토일렛 (타이탄급 크기, 머리박치기만 사용) ----------
+function createThreeHeadToiletMesh() {
+  const g = new THREE.Group();
+  const bowlMat = new THREE.MeshStandardMaterial({ color:0x5b5f65, roughness:0.5, metalness:0.25 });
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.75, 0.75, 16), bowlMat);
+  bowl.position.y = 0.6; bowl.castShadow = true; g.add(bowl);
+  const tank = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.9, 0.5), bowlMat);
+  tank.position.set(0, 1.35, -0.5); tank.castShadow = true; g.add(tank);
+
+  const headMat = new THREE.MeshStandardMaterial({ color:0x9c5a44 });
+  const eyeMat = new THREE.MeshStandardMaterial({ color:0xff3344, emissive:0xff2233, emissiveIntensity:0.8 });
+  const hornMat = new THREE.MeshStandardMaterial({ color:0x232323, roughness:0.6 });
+
+  function buildHead(scale, neckHeight, offsetX, offsetZ, withHorns) {
+    const headGroup = new THREE.Group();
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.14*scale, 0.19*scale, neckHeight, 8), headMat);
+    neck.position.y = neckHeight/2;
+    headGroup.add(neck);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.34*scale, 16, 16), headMat);
+    head.position.y = neckHeight + 0.3*scale;
+    headGroup.add(head);
+    [-0.13*scale, 0.13*scale].forEach(ex => {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.065*scale, 8, 8), eyeMat);
+      eye.position.set(ex, neckHeight + 0.32*scale, 0.28*scale);
+      headGroup.add(eye);
+    });
+    if (withHorns) {
+      [-0.16*scale, 0.16*scale].forEach(ex => {
+        const horn = new THREE.Mesh(new THREE.ConeGeometry(0.05*scale, 0.3*scale, 6), hornMat);
+        horn.position.set(ex, neckHeight + 0.58*scale, -0.05*scale);
+        horn.rotation.x = -0.3;
+        headGroup.add(horn);
+      });
+    }
+    headGroup.position.set(offsetX, 0.6, offsetZ);
+    return headGroup;
+  }
+
+  const centerHead = buildHead(1.55, 1.7, 0, 0.1, true);
+  const leftHead = buildHead(1.0, 0.55, -0.62, 0.3, false);
+  const rightHead = buildHead(1.0, 0.55, 0.62, 0.3, false);
+  g.add(centerHead); g.add(leftHead); g.add(rightHead);
+  g.userData.heads = [centerHead, leftHead, rightHead];
+
+  g.scale.set(BOSS_SCALE_TITAN, BOSS_SCALE_TITAN, BOSS_SCALE_TITAN); // 타이탄(타카)급 크기
+  return g;
+}
+
+// ---------- 최종보스: G맨 1.0 (타이탄급, 눈에서 노란 레이저 + 머리박치기) ----------
+function createGManMesh() {
+  const g = new THREE.Group();
+  const bowlMat = new THREE.MeshStandardMaterial({ color:0x2c2e33, roughness:0.4, metalness:0.35 });
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.78, 0.8, 16), bowlMat);
+  bowl.position.y = 0.62; bowl.castShadow = true; g.add(bowl);
+  const tank = new THREE.Mesh(new THREE.BoxGeometry(1.35, 1.0, 0.55), bowlMat);
+  tank.position.set(0, 1.42, -0.5); tank.castShadow = true; g.add(tank);
+
+  const neckMat = new THREE.MeshStandardMaterial({ color:0xcfa583 });
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.27, 0.9, 10), neckMat);
+  neck.position.set(0, 1.55, 0.15); g.add(neck);
+
+  const headMat = new THREE.MeshStandardMaterial({ color:0xd8b18f });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.46, 20, 20), headMat);
+  head.scale.set(0.82, 1.05, 0.95);
+  head.position.set(0, 2.35, 0.22);
+  head.castShadow = true; g.add(head);
+
+  const browMat = new THREE.MeshStandardMaterial({ color:0x4a3a2c });
+  [[-0.16, 0.35], [0.16, -0.35]].forEach(([ex, rot]) => {
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.05), browMat);
+    brow.position.set(ex, 2.56, 0.6);
+    brow.rotation.z = rot;
+    g.add(brow);
+  });
+
+  const eyeMat = new THREE.MeshStandardMaterial({ color:0xffe066, emissive:0xffcc33, emissiveIntensity:0.6 });
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.078, 10, 10), eyeMat);
+  eyeL.position.set(-0.16, 2.42, 0.6);
+  const eyeR = eyeL.clone(); eyeR.position.x = 0.16;
+  g.add(eyeL); g.add(eyeR);
+
+  const mouthMat = new THREE.MeshStandardMaterial({ color:0x2a1a14 });
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 0.05), mouthMat);
+  mouth.position.set(0, 2.14, 0.62);
+  g.add(mouth);
+
+  g.userData.eyeMat = eyeMat;
+  g.userData.eyeL = eyeL; g.userData.eyeR = eyeR;
+  g.userData.eyeHeight = 2.42; // 로컬 좌표 기준 눈 높이 (레이저 발사 위치 계산용)
+
+  g.scale.set(BOSS_SCALE_TITAN * 1.05, BOSS_SCALE_TITAN * 1.05, BOSS_SCALE_TITAN * 1.05); // 최종보스답게 타이탄보다 살짝 큼
+  return g;
+}
+
+const enemies = [];
+let activeBoss = null; // 현재 상단 보스 체력바에 표시 중인 보스
+
+// ---- 체력바 (적 머리 위 표시) ----
+function createHealthBarSprite(scaleX = 1.3, scaleY = 0.2) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128; canvas.height = 20;
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(scaleX, scaleY, 1);
+  sprite.renderOrder = 999;
+  return { sprite, canvas, ctx: canvas.getContext('2d'), tex, lastRatio: -1 };
+}
+function drawHealthBar(hb, ratio) {
+  const ctx = hb.ctx, w = hb.canvas.width, h = hb.canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(10,10,14,0.6)';
+  ctx.fillRect(0, 0, w, h);
+  const pad = 2, innerW = w - pad * 2, innerH = h - pad * 2;
+  ctx.fillStyle = '#241012';
+  ctx.fillRect(pad, pad, innerW, innerH);
+  const color = ratio > 0.5 ? '#3cff8b' : (ratio > 0.25 ? '#ffd166' : '#ff4d5e');
+  ctx.fillStyle = color;
+  ctx.fillRect(pad, pad, innerW * Math.max(0, ratio), innerH);
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, w - 1, h - 1);
+  hb.tex.needsUpdate = true;
+}
+
+function createStunIndicator() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.font = '42px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('💫', 32, 34);
+  const tex = new THREE.CanvasTexture(canvas);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true, depthTest:false }));
+  sprite.scale.set(0.9, 0.9, 1);
+  sprite.visible = false;
+  sprite.renderOrder = 998;
+  return sprite;
+}
+
+const ENEMY_MESH_BUILDERS = {
+  skibidi_toilet: createSkibidiToiletMesh,
+  giant_toilet: createGiantToiletMesh,
+  three_head_toilet: createThreeHeadToiletMesh,
+  g_man: createGManMesh,
+};
+const ENEMY_BAR_Y = {
+  skibidi_toilet: 1.9,
+  giant_toilet: 4.3,
+  three_head_toilet: 9.5,
+  g_man: 10.5,
+};
+
+function spawnEnemyAt(spawnPoint, type = 'skibidi_toilet') {
+  const def = ENEMY_DB[type];
+  const mesh = ENEMY_MESH_BUILDERS[type]();
+  mesh.position.set(spawnPoint.x, 0, spawnPoint.z);
+  cityGroup.add(mesh);
+  const barY = ENEMY_BAR_Y[type] || 1.9;
+  const barScale = def.isBoss ? [3.4, 0.42] : (type === 'giant_toilet' ? [1.9, 0.3] : [1.3, 0.2]);
+  const healthBar = createHealthBarSprite(barScale[0], barScale[1]);
+  healthBar.sprite.position.set(spawnPoint.x, barY, spawnPoint.z);
+  cityGroup.add(healthBar.sprite);
+  drawHealthBar(healthBar, 1); healthBar.lastRatio = 1;
+  const stunIcon = createStunIndicator();
+  stunIcon.position.set(spawnPoint.x, barY + 0.55, spawnPoint.z);
+  cityGroup.add(stunIcon);
+  enemies.push({
+    type, mesh,
+    x:spawnPoint.x, z:spawnPoint.z,
+    health:def.health, maxHealth:def.health,
+    hitCooldown:0, bobPhase:Math.random()*10,
+    spawnPoint, respawnTimer:0, weaponSkillHit:false,
+    healthBar, barY, stunIcon,
+    stunTimer:0, isBeingThrown:false, posLocked:false,
+    bossIntroShown:false,
+  });
+  return enemies[enemies.length - 1];
+}
+function buildEnemies() {
+  CITY_MAP.ENEMY_SPAWN_POINTS.forEach(sp => spawnEnemyAt(sp, 'skibidi_toilet'));
+  CITY_MAP.GIANT_SPAWN_POINTS.forEach(sp => spawnEnemyAt(sp, 'giant_toilet'));
+  spawnEnemyAt(CITY_MAP.THREE_HEAD_SPAWN, 'three_head_toilet'); // 중간보스 — 맵 진입시부터 존재
+}
+
+// 대형 토일렛 구역 경고 마커 (바닥 표시 + 안내판)
+function buildGiantZoneMarker() {
+  const c = CITY_MAP.GIANT_ZONE_CENTER, r = CITY_MAP.GIANT_ZONE_RADIUS;
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(r - 1, r, 48),
+    new THREE.MeshBasicMaterial({ color:0xff3344, side:THREE.DoubleSide, transparent:true, opacity:0.35 })
+  );
+  ring.rotation.x = -Math.PI/2;
+  ring.position.set(c.x, 0.04, c.z);
+  cityGroup.add(ring);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 320; canvas.height = 100;
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'bold 34px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ff5b6c';
+  ctx.fillText('⚠ 대형 토일렛 구역', 160, 55);
+  const tex = new THREE.CanvasTexture(canvas);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true }));
+  sprite.scale.set(6, 1.9, 1);
+  sprite.position.set(c.x, 4, c.z);
+  cityGroup.add(sprite);
+}
+buildGiantZoneMarker();
+
+// G맨이 부수고 나타나는 폐허 아파트 건물
+function buildGManBuilding() {
+  const p = CITY_MAP.GMAN_SPAWN;
+  const g = new THREE.Group();
+  g.position.set(p.x, 0, p.z);
+  const wallMat = new THREE.MeshStandardMaterial({ color:0x5a5650, roughness:0.9 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(9, 22, 9), wallMat);
+  body.position.y = 11; body.castShadow = true; body.receiveShadow = true;
+  g.add(body);
+  const winMat = new THREE.MeshStandardMaterial({ color:0x1c2530, emissive:0x2a3948, emissiveIntensity:0.5 });
+  for (let fy = 2.5; fy < 20; fy += 3.2) {
+    for (let side = 0; side < 4; side++) {
+      const ang = side * Math.PI/2;
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.7), winMat);
+      win.position.set(Math.sin(ang)*4.51, fy, Math.cos(ang)*4.51);
+      win.rotation.y = ang;
+      g.add(win);
+    }
+  }
+  const roofMat = new THREE.MeshStandardMaterial({ color:0x3a3632, roughness:0.8 });
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.6, 9.6), roofMat);
+  roof.position.y = 22.3;
+  g.add(roof);
+  cityGroup.add(g);
+  return g;
+}
+const gmanBuilding = buildGManBuilding();
+let gmanRevealed = false;
+
+function triggerGManReveal() {
+  if (gmanRevealed) return;
+  gmanRevealed = true;
+  const wasRunning = gameRunning;
+  gameRunning = false;
+  const p = CITY_MAP.GMAN_SPAWN;
+  spawnImpactBurst({ x:p.x, y:1, z:p.z }, 0x8a8a8a, 30);
+  spawnRingShockwave({ x:p.x, z:p.z }, 0xffcc33, 16, 0.9);
+  const start = performance.now();
+  const duration = 1300;
+  function collapseTick() {
+    const e = Math.min(1, (performance.now() - start) / duration);
+    gmanBuilding.scale.y = Math.max(0.02, 1 - e);
+    gmanBuilding.position.y = -e * 3.5;
+    gmanBuilding.rotation.z = e * 0.18;
+    gmanBuilding.rotation.x = e * 0.1;
+    if (e < 1) requestAnimationFrame(collapseTick);
+    else {
+      gmanBuilding.visible = false;
+      const gman = spawnEnemyAt(p, 'g_man');
+      gman.bossIntroShown = true;
+      showBossBanner('⚠️ 무너진 도시 월드보스', 'G맨 1.0');
+      activateBossBar(gman);
+      spawnImpactBurst({ x:p.x, y:2, z:p.z }, 0xffe066, 24);
+      gameRunning = wasRunning;
+    }
+  }
+  collapseTick();
+}
+function checkGManTrigger() {
+  if (gmanRevealed || currentMapId !== 'ruined_city') return;
+  const p = CITY_MAP.GMAN_SPAWN;
+  const dist = Math.hypot(player.position.x - p.x, player.position.z - p.z);
+  if (dist < 24) triggerGManReveal();
+}
+
+buildEnemies();
+
+function updateEnemies(dt) {
+  if (currentMapId !== 'ruined_city') return;
+  enemies.forEach(en => {
+    const def = ENEMY_DB[en.type];
+    if (en.dead) {
+      en.healthBar.sprite.visible = false;
+      en.stunIcon.visible = false;
+      en.respawnTimer -= dt;
+      if (en.respawnTimer <= 0) {
+        en.dead = false;
+        en.health = en.maxHealth;
+        en.x = en.spawnPoint.x; en.z = en.spawnPoint.z;
+        en.mesh.position.set(en.x, 0, en.z);
+        en.mesh.rotation.x = 0;
+        en.mesh.visible = true;
+        en.weaponSkillHit = false;
+        en.stunTimer = 0; en.isBeingThrown = false;
+        if (def.isBoss) { en.bossIntroShown = false; centerMsg('⚠️ ' + def.name + '이(가) 다시 나타났다!'); }
+      }
+      return;
+    }
+    if (en.isBeingThrown || en.posLocked) {
+      // 집어던지기/머리박치기 애니메이션이 위치를 직접 제어하는 동안은 평소 AI를 멈춤
+      en.healthBar.sprite.position.set(en.x, en.barY, en.z);
+      en.stunIcon.visible = false;
+      return;
+    }
+    if (en.stunTimer > 0) {
+      en.stunTimer -= dt;
+      en.stunIcon.visible = true;
+      en.stunIcon.position.set(en.x, en.barY + 0.55, en.z);
+    } else if (def.isBoss) {
+      en.stunIcon.visible = false;
+      checkBossEncounter(en);
+      const dx = player.position.x - en.x, dz = player.position.z - en.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < def.aggroRange) {
+        const dirX = dx/dist, dirZ = dz/dist;
+        const meleeRange = 4.6;
+        if (dist > meleeRange) { en.x += dirX * def.speed * dt; en.z += dirZ * def.speed * dt; }
+        en.mesh.rotation.y = Math.atan2(dirX, dirZ);
+        if (en.hitCooldown <= 0) {
+          if (def.hasLaser && Math.random() < 0.45) performGManLaser(en, dirX, dirZ);
+          else performHeadbutt(en, dirX, dirZ);
+          en.hitCooldown = def.attackInterval;
+        }
+      }
+    } else {
+      en.stunIcon.visible = false;
+      const dx = player.position.x - en.x, dz = player.position.z - en.z;
+      const dist = Math.hypot(dx, dz);
+      const hitRange = en.type === 'giant_toilet' ? 2.2 : 1.3;
+      if (dist < def.aggroRange) {
+        const dirX = dx/dist, dirZ = dz/dist;
+        en.x += dirX * def.speed * dt;
+        en.z += dirZ * def.speed * dt;
+        en.mesh.rotation.y = Math.atan2(dirX, dirZ);
+        if (dist < hitRange && en.hitCooldown <= 0) {
+          takeDamage(def.contactDamage);
+          en.hitCooldown = def.attackInterval;
+        }
+      }
+    }
+    if (en.hitCooldown > 0) en.hitCooldown -= dt;
+    en.bobPhase += dt*4;
+    en.mesh.position.set(en.x, Math.sin(en.bobPhase)*0.05, en.z); // 스키비디는 미끄러지듯 이동
+    en.healthBar.sprite.visible = true;
+    en.healthBar.sprite.position.set(en.x, en.barY, en.z);
+    const hpRatio = Math.max(0, en.health / en.maxHealth);
+    if (Math.abs(hpRatio - en.healthBar.lastRatio) > 0.001) {
+      drawHealthBar(en.healthBar, hpRatio);
+      en.healthBar.lastRatio = hpRatio;
+      if (activeBoss === en) updateBossBar();
+    }
+    const pos = { x:en.x, z:en.z };
+    resolveCityCollision(pos, def.isBoss ? 2.6 : (en.type === 'giant_toilet' ? 1.1 : 0.6));
+    en.x = pos.x; en.z = pos.z;
+  });
+}
+
+// ---- 보스 조우 연출: 처음 아그로 범위에 들어오면 배너 + 보스 체력바 표시 ----
+function checkBossEncounter(en) {
+  if (en.bossIntroShown) return;
+  en.bossIntroShown = true;
+  const def = ENEMY_DB[en.type];
+  showBossBanner(def.bossTier === '월드보스' ? '⚠️ 무너진 도시 월드보스' : '⚠️ 중간보스 출현', def.name);
+  activateBossBar(en);
+}
+
+// ---- 머리박치기 (모든 보스 공통 공격) ----
+function performHeadbutt(en, dirX, dirZ) {
+  const def = ENEMY_DB[en.type];
+  const dist = Math.hypot(player.position.x - en.x, player.position.z - en.z);
+  const hitRange = 4.2;
+  en.posLocked = true;
+  const mesh = en.mesh;
+  const baseX = en.x, baseZ = en.z;
+  const lungeDist = 1.6;
+  const start = performance.now();
+  function tick() {
+    const e = (performance.now() - start) / 320;
+    if (e >= 1) {
+      mesh.position.set(en.x, 0, en.z);
+      mesh.rotation.x = 0;
+      en.posLocked = false;
+      return;
+    }
+    const k = Math.sin(e * Math.PI);
+    mesh.position.set(baseX + dirX*lungeDist*k, 0, baseZ + dirZ*lungeDist*k);
+    mesh.rotation.x = k * 0.35;
+    requestAnimationFrame(tick);
+  }
+  tick();
+  centerMsg('💢 ' + def.name + '의 머리박치기!');
+  if (dist < hitRange) {
+    setTimeout(() => { takeDamage(def.contactDamage); spawnImpactBurst(player.position, 0xff6644, 10); }, 140);
+  }
+}
+
+// ---- G맨 전용: 눈에서 노란 레이저 발사 ----
+function performGManLaser(en, dirX, dirZ) {
+  const mesh = en.mesh;
+  if (mesh.userData.eyeMat) mesh.userData.eyeMat.emissiveIntensity = 3.2;
+  centerMsg('☢️ G맨의 눈에서 노란 레이저!');
+  setTimeout(() => {
+    if (en.dead) return;
+    const scale = mesh.scale.y;
+    const eyeWorldY = (mesh.userData.eyeHeight || 2.4) * scale;
+    const from = new THREE.Vector3(en.x, eyeWorldY, en.z);
+    const beamLen = 42;
+    const dir = new THREE.Vector3(dirX, 0, dirZ);
+    const beam = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.14, 0.14, beamLen, 8),
+      new THREE.MeshBasicMaterial({ color:0xffe066, transparent:true, opacity:0.85 })
+    );
+    beam.position.copy(from).addScaledVector(dir, beamLen/2);
+    beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+    cityGroup.add(beam);
+    const glow = new THREE.PointLight(0xffe066, 3.2, 14);
+    glow.position.copy(from);
+    cityGroup.add(glow);
+
+    const dist = Math.hypot(player.position.x - en.x, player.position.z - en.z);
+    const toPlayer = new THREE.Vector3(player.position.x - en.x, 0, player.position.z - en.z);
+    if (dist > 0.1) toPlayer.normalize();
+    if (dist < beamLen && toPlayer.dot(dir) > 0.9) {
+      takeDamage(ENEMY_DB.g_man.contactDamage + 15);
+    }
+    const bstart = performance.now();
+    function fade() {
+      const e = (performance.now() - bstart) / 450;
+      if (e >= 1) { if (beam.parent) beam.parent.remove(beam); if (glow.parent) glow.parent.remove(glow); return; }
+      beam.material.opacity = 0.85 * (1-e);
+      glow.intensity = 3.2 * (1-e);
+      requestAnimationFrame(fade);
+    }
+    fade();
+    if (mesh.userData.eyeMat) mesh.userData.eyeMat.emissiveIntensity = 0.6;
+  }, 550); // 살짝 딜레이(텔레그래프 느낌)
+}
+
+function killEnemy(en, source = 'other') {
+  en.dead = true;
+  en.mesh.visible = false;
+  en.healthBar.sprite.visible = false;
+  en.stunIcon.visible = false;
+  const def = ENEMY_DB[en.type];
+  en.respawnTimer = def.isBoss ? (en.type === 'g_man' ? 600 : 300) : 6; // G맨 10분 / 3머리토일렛 5분
+  if (activeBoss === en) { activeBoss = null; document.getElementById('bossBarContainer').style.display = 'none'; }
+  if (def.isBoss) {
+    showBossBanner('🏆 처치 완료', def.name);
+  }
+  gainXP(def.killXP);
+  playerStats.coins += def.killCoins;
+  if (en.type === 'skibidi_toilet') playerStats.toiletKills++;
+  if (en.type === 'giant_toilet') playerStats.giantToiletKills++;
+  gainSkillTreeXP(def.killSkillXP);
+  updateHUD();
+  updateGiantJobQuestTracker();
+  centerMsg('처치! +' + def.killXP + 'XP  🪙+' + def.killCoins);
+
+  const curId = getCurrentQuestId();
+  if (curId) {
+    const q = QUEST_DB[curId];
+    const qp = getQuestProgress(curId);
+    if (qp.status === 'active' && qp.progress < q.targetCount) {
+      const matchesType = q.targetEnemy === 'any' || q.targetEnemy === en.type;
+      const matchesSource = !q.requireSource || source === q.requireSource || en.weaponSkillHit;
+      if (matchesType && matchesSource) {
+        qp.progress++;
+        updateQuestMarker();
+        updateQuestTracker();
+        if (qp.progress >= q.targetCount) {
+          centerMsg('목표 달성! 퀘스트기버에게 돌아가세요.');
+        }
+      }
+    }
+  }
+}
+
+function resolveCityCollision(pos, radius) {
+  cityObstacleMeshes.forEach(o => {
+    const halfW = o.w/2 + radius, halfD = o.d/2 + radius;
+    const dx = pos.x - o.x, dz = pos.z - o.z;
+    if (Math.abs(dx) < halfW && Math.abs(dz) < halfD) {
+      const overlapX = halfW - Math.abs(dx);
+      const overlapZ = halfD - Math.abs(dz);
+      if (overlapX < overlapZ) pos.x += Math.sign(dx || 1) * overlapX;
+      else pos.z += Math.sign(dz || 1) * overlapZ;
+    }
+  });
+}
+
+function travelTo(mapId) {
+  closeTravelDialog(); closeQuestDialog(); closeShop(); closeInventory();
+  if (mapId === 'base') {
+    baseGroup.visible = true; cityGroup.visible = false; currentMapId = 'base';
+    player.position.set(0, 0, 0); 
+    document.getElementById('returnBaseBtn').style.display = 'none';
+    document.getElementById('bossBarContainer').style.display = 'none';
+    activeBoss = null;
+    centerMsg('카메라 기지로 귀환');
+  } else if (mapId === 'ruined_city') {
+    baseGroup.visible = false; cityGroup.visible = true; currentMapId = 'ruined_city';
+    player.position.set(CITY_MAP.playerStart.x, 0, CITY_MAP.playerStart.z);
+    document.getElementById('returnBaseBtn').style.display = 'block';
+    centerMsg('무너진 도시에 도착');
+  }
+  playerState.velocityY = 0; playerState.onGround = true;
+}
+
+// ---------- 등장씬(컷신): 대형 토일렛 구역 최초 진입 시 카메라 무비먼트 + 자막 ----------
+function checkGiantZoneCutsceneTrigger() {
+  if (flags.giantZoneCutscenePlayed) return;
+  if (currentMapId !== 'ruined_city') return;
+  const c = CITY_MAP.GIANT_ZONE_CENTER;
+  const dist = Math.hypot(player.position.x - c.x, player.position.z - c.z);
+  if (dist < CITY_MAP.GIANT_ZONE_RADIUS) {
+    flags.giantZoneCutscenePlayed = true;
+    startGiantZoneCutscene();
+  }
+}
+
+function startGiantZoneCutscene() {
+  const target = enemies.find(en => en.type === 'giant_toilet' && !en.dead);
+  const gx = target ? target.x : 0, gz = target ? target.z : -50;
+  const px = player.position.x, pz = player.position.z;
+
+  const waypoints = [
+    { pos:{ x:px+2,    y:14,  z:pz+16 },  look:{ x:px, y:1, z:pz },       dur:1.4 }, // 상공에서 플레이어 조망
+    { pos:{ x:gx+11,   y:7.5, z:gz+17 },  look:{ x:gx, y:4, z:gz },       dur:1.9 }, // 대형 토일렛 구역으로 스윕
+    { pos:{ x:gx+2.6,  y:2.3, z:gz+4.6 }, look:{ x:gx, y:6.5, z:gz },     dur:2.1 }, // 로우앵글 위압적 등장샷
+    { pos:{ x:px,      y:5,   z:pz+9 },   look:{ x:px, y:1.6, z:pz },     dur:1.3 }, // 플레이어로 복귀
+  ];
+  const lines = [
+    { start:0.2, end:1.3, text:'...무언가 거대한 것이 이 구역을 지배하고 있다...' },
+    { start:1.5, end:3.3, text:'🚽 대형 토일렛 — 폐허 지대의 포식자' },
+    { start:3.5, end:5.6, text:'평범한 토일렛과는 비교할 수 없는 위협이다. 신중하게 접근해라.' },
+  ];
+  playCutscene(waypoints, lines);
+}
+
+function playCutscene(waypoints, lines, onComplete = null) {
+  if (document.pointerLockElement) document.exitPointerLock();
+  cutscene.active = true;
+  cutscene.waypoints = waypoints;
+  cutscene.lines = lines;
+  cutscene.onComplete = onComplete;
+  cutscene.segIndex = 0;
+  cutscene.segElapsed = 0;
+  cutscene.totalElapsed = 0;
+  cutscene.startPos = camera.position.clone();
+  cutscene.startLook = player.position.clone().add(new THREE.Vector3(0, 1.6, 0));
+  document.getElementById('cutsceneOverlay').style.display = 'block';
+  document.getElementById('cutsceneSubtitle').style.opacity = 0;
+  document.getElementById('hud').classList.add('cutscene-active');
+}
+
+function updateCutscene(dt) {
+  cutscene.totalElapsed += dt;
+  const wps = cutscene.waypoints;
+  if (cutscene.segIndex < wps.length) {
+    cutscene.segElapsed += dt;
+    const wp = wps[cutscene.segIndex];
+    const t = Math.min(1, cutscene.segElapsed / wp.dur);
+    const e = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2; // ease-in-out
+    const fromPos = cutscene.segIndex === 0 ? cutscene.startPos : wps[cutscene.segIndex - 1].pos;
+    const fromLook = cutscene.segIndex === 0 ? cutscene.startLook : wps[cutscene.segIndex - 1].look;
+    camera.position.set(
+      fromPos.x + (wp.pos.x - fromPos.x) * e,
+      fromPos.y + (wp.pos.y - fromPos.y) * e,
+      fromPos.z + (wp.pos.z - fromPos.z) * e
+    );
+    camera.lookAt(
+      fromLook.x + (wp.look.x - fromLook.x) * e,
+      fromLook.y + (wp.look.y - fromLook.y) * e,
+      fromLook.z + (wp.look.z - fromLook.z) * e
+    );
+    if (t >= 1) { cutscene.segIndex++; cutscene.segElapsed = 0; }
+  } else {
+    endCutscene();
+    return;
+  }
+  const subEl = document.getElementById('cutsceneSubtitle');
+  const line = cutscene.lines.find(l => cutscene.totalElapsed >= l.start && cutscene.totalElapsed <= l.end);
+  if (line) { subEl.textContent = line.text; subEl.style.opacity = 1; }
+  else { subEl.style.opacity = 0; }
+}
+
+function endCutscene() {
+  cutscene.active = false;
+  document.getElementById('cutsceneOverlay').style.display = 'none';
+  document.getElementById('hud').classList.remove('cutscene-active');
+  const cb = cutscene.onComplete;
+  cutscene.onComplete = null;
+  if (cb) cb();
+}
+
+function openQuestDialog() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  const titleEl = document.getElementById('questTitle');
+  const textEl = document.getElementById('questText');
+  const progEl = document.getElementById('questProgressLine');
+  const actionBtn = document.getElementById('questActionBtn');
+  actionBtn.style.display = 'none';
+  progEl.textContent = '';
+
+  const curId = getCurrentQuestId();
+  if (!curId) {
+    titleEl.textContent = '💬 퀘스트';
+    textEl.textContent = '수고했어, 카메라맨. 지금은 더 줄 퀘스트가 없어.';
+    document.getElementById('questDialog').style.display = 'flex';
+    return;
+  }
+
+  const q = QUEST_DB[curId];
+  const qp = getQuestProgress(curId);
+  titleEl.textContent = '💬 ' + q.title;
+
+  if (qp.status === 'not_started') {
+    const itemName = q.rewardItem ? ITEM_DB[q.rewardItem].icon + ' ' + ITEM_DB[q.rewardItem].name : null;
+    textEl.textContent = q.desc + ' (보상: XP ' + q.rewardXP + ', 코인 ' + q.rewardCoins + (itemName ? ', ' + itemName : '') + ')';
+    actionBtn.textContent = '퀘스트 수락';
+    actionBtn.style.display = 'block';
+    actionBtn.onclick = () => {
+      qp.status = 'active'; qp.progress = 0;
+      updateQuestMarker(); updateQuestTracker(); centerMsg('퀘스트 수락: ' + q.title); closeQuestDialog();
+    };
+  } else if (q.type === 'item' && qp.status === 'active') {
+    const haveQty = playerStats.inventory.find(i => i.itemId === q.targetItem)?.qty || 0;
+    textEl.textContent = q.desc;
+    progEl.textContent = '보유: ' + ITEM_DB[q.targetItem].icon + ' ' + Math.min(haveQty, q.targetCount) + ' / ' + q.targetCount;
+    if (haveQty >= q.targetCount) {
+      actionBtn.textContent = '🔵 코어 제작하기'; actionBtn.style.display = 'block';
+      actionBtn.onclick = () => {
+        closeQuestDialog();
+        startTitanForgeCutscene(() => {
+          removeItem(q.targetItem, q.targetCount);
+          gainXP(q.rewardXP);
+          if (q.rewardCoins) playerStats.coins += q.rewardCoins;
+          qp.status = 'completed';
+          let msg = '🔵 타이탄 카메라맨의 코어 완성! +' + q.rewardXP + 'XP';
+          if (q.rewardItem) {
+            const gotSpace = addItem(q.rewardItem, 1);
+            if (gotSpace) msg += ', ' + ITEM_DB[q.rewardItem].icon + ' ' + ITEM_DB[q.rewardItem].name + ' 획득!';
+            renderInventory();
+          }
+          const nextIdx = QUEST_CHAIN.indexOf(curId) + 1;
+          if (nextIdx < QUEST_CHAIN.length) getQuestProgress(QUEST_CHAIN[nextIdx]).status = 'active';
+          updateQuestMarker(); updateQuestTracker(); updateHUD();
+          centerMsg(msg);
+        });
+      };
+    }
+  } else if (qp.status === 'active' && qp.progress < q.targetCount) {
+    textEl.textContent = q.desc;
+    progEl.textContent = '진행도: ' + qp.progress + ' / ' + q.targetCount;
+  } else if (qp.status === 'active' && qp.progress >= q.targetCount) {
+    textEl.textContent = '목표를 다 채웠다! 수고했어.';
+    progEl.textContent = '진행도: ' + qp.progress + ' / ' + q.targetCount + ' (완료)';
+    actionBtn.textContent = '보상 받기'; actionBtn.style.display = 'block';
+    actionBtn.onclick = () => {
+      gainXP(q.rewardXP); playerStats.coins += q.rewardCoins; qp.status = 'completed';
+      let msg = '퀘스트 완료! +' + q.rewardXP + 'XP, 🪙+' + q.rewardCoins;
+      if (q.rewardItem) {
+        const gotSpace = addItem(q.rewardItem, 1);
+        if (gotSpace) msg += ', ' + ITEM_DB[q.rewardItem].icon + ' ' + ITEM_DB[q.rewardItem].name + ' 획득!';
+        renderInventory();
+      }
+      // 다음 체인 퀘스트를 자동으로 활성화 (다시 찾아가서 수락 안 해도 바로 카운트됨)
+      const nextIdx = QUEST_CHAIN.indexOf(curId) + 1;
+      if (nextIdx < QUEST_CHAIN.length) {
+        const nextId = QUEST_CHAIN[nextIdx];
+        getQuestProgress(nextId).status = 'active';
+        msg += ' / 다음 퀘스트 시작: ' + QUEST_DB[nextId].title;
+      }
+      updateQuestMarker(); updateQuestTracker(); updateHUD();
+      centerMsg(msg); closeQuestDialog();
+    };
+  }
+  document.getElementById('questDialog').style.display = 'flex';
+}
+function closeQuestDialog() { document.getElementById('questDialog').style.display = 'none'; }
+
+// ---------- 과학자 카메라맨 다이얼로그 (타이탄 카메라맨의 코어 제작) ----------
+const SCIENTIST_REQ_LEVEL = 10;
+function openScientistDialog() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  const textEl = document.getElementById('scientistText');
+  const actionBtn = document.getElementById('scientistActionBtn');
+  actionBtn.style.display = 'none';
+
+  const already = titanState.unlocked || !!playerStats.equipment.titan;
+  if (already) {
+    textEl.textContent = '🔵 타이탄 카메라맨의 코어는 이미 만들어서 넘겨줬지. 잘 쓰고 있나?';
+  } else if (playerStats.level < SCIENTIST_REQ_LEVEL) {
+    textEl.textContent = '아직 실력이 부족해. 레벨 ' + SCIENTIST_REQ_LEVEL + ' 이상이 되면 다시 찾아와. (현재 Lv.' + playerStats.level + ')';
+  } else {
+    const haveQty = playerStats.inventory.find(i => i.itemId === 'titan_core_raw')?.qty || 0;
+    if (haveQty >= 1) {
+      textEl.textContent = '오, 코어 원석을 구해왔군! 바로 안정화시켜서 타이탄 카메라맨의 코어로 만들어줄게.';
+      actionBtn.textContent = '🔵 코어 제작하기';
+      actionBtn.style.display = 'block';
+      actionBtn.onclick = () => {
+        closeScientistDialog();
+        startTitanForgeCutscene(() => {
+          removeItem('titan_core_raw', 1);
+          addItem('titan_cameraman_core', 1);
+          renderInventory(); updateHUD(); updateScientistMarker();
+          centerMsg('🔵 타이탄 카메라맨의 코어 완성!');
+        });
+      };
+    } else {
+      textEl.textContent = '상점에서 타이탄의 코어(원석)를 1,000코인에 구매해서 가져와. 그럼 안정화시켜서 타이탄 카메라맨의 코어로 만들어줄게.';
+    }
+  }
+  document.getElementById('scientistDialog').style.display = 'flex';
+}
+function closeScientistDialog() { document.getElementById('scientistDialog').style.display = 'none'; }
+
+function updateQuestTracker() {
+  const tracker = document.getElementById('questTracker');
+  const curId = getCurrentQuestId();
+  if (!curId) { tracker.style.display = 'none'; return; }
+  const qp = getQuestProgress(curId);
+  if (qp.status !== 'active') { tracker.style.display = 'none'; return; }
+  const q = QUEST_DB[curId];
+  tracker.style.display = 'block';
+  if (q.type === 'item') {
+    const haveQty = playerStats.inventory.find(i => i.itemId === q.targetItem)?.qty || 0;
+    tracker.textContent = '📋 ' + q.title + '  (보유 ' + Math.min(haveQty, q.targetCount) + '/' + q.targetCount + ')';
+  } else {
+    tracker.textContent = '📋 ' + q.title + '  (' + qp.progress + '/' + q.targetCount + ')';
+  }
+}
+
+const TRAVEL_DESTINATIONS = [
+  { mapId:'ruined_city', name:'무너진 도시', desc:'스키비디 토일렛이 출몰하는 폐허 지역' },
+];
+function openTravelDialog() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  const grid = document.getElementById('travelGrid');
+  grid.innerHTML = '';
+  TRAVEL_DESTINATIONS.forEach(d => {
+    const div = document.createElement('div');
+    div.className = 'travelOption';
+    div.innerHTML = `<b>${d.name}</b><span>${d.desc}</span>`;
+    div.addEventListener('click', () => travelTo(d.mapId));
+    grid.appendChild(div);
+  });
+  document.getElementById('travelDialog').style.display = 'flex';
+}
+function closeTravelDialog() { document.getElementById('travelDialog').style.display = 'none'; }
+
+const playerStats = {
+  level: 1, xp: 0, xpMax: 100, invCapacity: 12, inventory: [],
+  equipment: { weapon: null, head: null, chest: null, legs: null, feet: null, titan: null },
+  baseAtk: 8, baseDef: 0, coins: 0,
+  job: null,                 
+  weaponSkillUses: 0,        
+  toiletKills: 0,
+  giantToiletKills: 0,
+  classProgress: {},         
+};
+
+function centerMsg(text) {
+  const el = document.getElementById('centerMsg');
+  el.textContent = text;
+  el.style.opacity = 1;
+  el.style.transform = 'translate(-50%, -50%) scale(1.1)';
+  clearTimeout(centerMsg._t);
+  centerMsg._t = setTimeout(() => { 
+    el.style.opacity = 0; 
+    el.style.transform = 'translate(-50%, -50%) scale(1)';
+  }, 1600);
+}
+
+// ---- 보스 등장 배너 + 상단 보스 체력바 ----
+function showBossBanner(sub, name) {
+  const el = document.getElementById('bossBanner');
+  el.querySelector('.bbSub').textContent = sub;
+  el.querySelector('.bbName').textContent = name;
+  el.style.display = 'block';
+  requestAnimationFrame(() => { el.style.opacity = 1; });
+  clearTimeout(showBossBanner._t1); clearTimeout(showBossBanner._t2);
+  showBossBanner._t1 = setTimeout(() => { el.style.opacity = 0; }, 2600);
+  showBossBanner._t2 = setTimeout(() => { el.style.display = 'none'; }, 3200);
+}
+function activateBossBar(en) {
+  activeBoss = en;
+  document.getElementById('bossBarContainer').style.display = 'block';
+  document.getElementById('bossBarName').textContent = ENEMY_DB[en.type].name;
+  updateBossBar();
+}
+function updateBossBar() {
+  if (!activeBoss) return;
+  if (activeBoss.dead) {
+    document.getElementById('bossBarContainer').style.display = 'none';
+    activeBoss = null;
+    return;
+  }
+  const ratio = Math.max(0, activeBoss.health / activeBoss.maxHealth);
+  document.getElementById('bossBarFill').style.width = (ratio * 100) + '%';
+}
+
+function addItem(itemId, qty = 1) {
+  const existing = playerStats.inventory.find(i => i.itemId === itemId);
+  if (existing) { existing.qty += qty; return true; }
+  if (playerStats.inventory.length >= playerStats.invCapacity) return false;
+  playerStats.inventory.push({ itemId, qty });
+  return true;
+}
+
+function removeItem(itemId, qty = 1) {
+  const idx = playerStats.inventory.findIndex(i => i.itemId === itemId);
+  if (idx === -1) return;
+  playerStats.inventory[idx].qty -= qty;
+  if (playerStats.inventory[idx].qty <= 0) playerStats.inventory.splice(idx, 1);
+}
+
+const ARMOR_SLOTS = ['head','chest','legs','feet'];
+const SLOT_LABEL = { weapon:'무기', head:'머리', chest:'갑바', legs:'바지', feet:'신발', titan:'타이탄 코어' };
+
+function computeEquipStats() {
+  let atk = playerStats.baseAtk, def = playerStats.baseDef;
+  if (playerStats.equipment.weapon) atk += ITEM_DB[playerStats.equipment.weapon].atk || 0;
+  ARMOR_SLOTS.forEach(slot => { if (playerStats.equipment[slot]) def += ITEM_DB[playerStats.equipment[slot]].def || 0; });
+  if (playerStats.job && playerStats.classProgress[playerStats.job]) {
+    const cp = playerStats.classProgress[playerStats.job];
+    atk += cp.atkBonus || 0;
+    def += cp.defBonus || 0;
+  }
+  if (rageState.active) atk += 5;
+  if (titanState.active) {
+    def += TITAN_DEF_BONUS;               // 본인 방어력 + 타이탄 자체 방어력
+    atk *= TITAN_DMG_MULT;                // 타이탄 모드: 레벨업 뎀지 + 무기 뎀지에 10배 배율
+    if (titanState.shieldActive) def += TITAN_SHIELD_DEF_BONUS;
+  }
+  return { atk, def };
+}
+
+function equipItem(itemId) {
+  const item = ITEM_DB[itemId];
+  const slot = item.slot; 
+  const prevEquipped = playerStats.equipment[slot];
+  removeItem(itemId, 1);
+  if (prevEquipped) addItem(prevEquipped, 1);
+  playerStats.equipment[slot] = itemId;
+  if (slot === 'weapon') {
+    const wm = player.getObjectByName('weaponMesh');
+    if (wm) wm.visible = true;
+    refreshWeaponSkillButton();
+  }
+  if (slot === 'titan') {
+    titanState.unlocked = true;
+    centerMsg('🔵 타이탄 카메라맨의 코어 장착! 이제 각성할 수 있어요');
+    refreshTitanButton();
+    updateScientistMarker();
+  }
+  renderInventory(); updateHUD();
+}
+
+function unequipItem(slot) {
+  const itemId = playerStats.equipment[slot];
+  if (!itemId) return;
+  if (!addItem(itemId, 1)) { centerMsg('인벤토리가 가득 찼어요!'); return; }
+  playerStats.equipment[slot] = null;
+  if (slot === 'weapon') {
+    const wm = player.getObjectByName('weaponMesh');
+    if (wm) wm.visible = false;
+    refreshWeaponSkillButton();
+  }
+  if (slot === 'titan') {
+    titanState.unlocked = false;
+    if (titanState.active) endTitanTransform();
+    refreshTitanButton();
+    updateScientistMarker();
+  }
+  renderInventory(); updateHUD();
+}
+
+function refreshWeaponSkillButton() {
+  if (!isTouchDevice) return;
+  document.getElementById('skillBtn').style.display = (playerStats.equipment.weapon === 'plunger') ? 'flex' : 'none';
+}
+
+function refreshTitanButton() {
+  if (!isTouchDevice) return;
+  document.getElementById('titanBtn').style.display = titanState.unlocked ? 'flex' : 'none';
+}
+
+function gainXP(amount) {
+  playerStats.xp += amount;
+  while (playerStats.xp >= playerStats.xpMax) {
+    playerStats.xp -= playerStats.xpMax;
+    playerStats.level += 1;
+    playerStats.xpMax = Math.round(playerStats.xpMax * 1.25);
+    playerStats.baseAtk += 1; playerStats.baseDef += 1;
+    playerState.maxHealth += 10; playerState.health = playerState.maxHealth; 
+    centerMsg('레벨 업! Lv. ' + playerStats.level);
+  }
+  updateHUD();
+}
+
+function isSkillUnlocked(skillId, classId = playerStats.job) {
+  if (!classId) return false;
+  const classDef = CLASS_DB[classId];
+  const skillDef = classDef.skills[skillId];
+  if (!skillDef) return false;
+  if (skillDef.unlockLevel === 0) return true;
+  const cp = playerStats.classProgress[classId];
+  return cp && cp.treeLevel >= skillDef.unlockLevel;
+}
+
+function applyTreeLevelBonus(job, level) {
+  const cp = playerStats.classProgress[job];
+  if (job === 'giant_cameraman') {
+    if (level === 2) centerMsg('💥 몸통박치기 스킬 해금!');
+    else if (level === 3) centerMsg('🤾 집어던지기 스킬 해금! (스킬트리 만렙)');
+    updateHUD();
+    refreshClassButtons();
+    return;
+  }
+  if (level === 2) { cp.atkBonus = (cp.atkBonus || 0) + 1; centerMsg('스킬트리 레벨업! 공격력 +1'); }
+  else if (level === 3) { centerMsg('🔥 분노 스킬 해금!'); }
+  else if (level === 4) { cp.defBonus = (cp.defBonus || 0) + 1; centerMsg('스킬트리 레벨업! 방어력 +1'); }
+  else if (level === 5) { centerMsg('📣 지원요청 스킬 해금! (2차전직 조건 달성)'); }
+  else { centerMsg('스킬트리 레벨업! Lv.' + level); }
+  updateHUD();
+  refreshClassButtons();
+}
+
+function gainSkillTreeXP(amount) {
+  if (!playerStats.job) return;
+  const job = playerStats.job;
+  const cp = playerStats.classProgress[job];
+  const maxLv = CLASS_DB[job].maxTreeLevel;
+  if (!cp || cp.treeLevel >= maxLv) return;
+  cp.treeXP += amount;
+  while (cp.treeXP >= cp.treeXPMax && cp.treeLevel < maxLv) {
+    cp.treeXP -= cp.treeXPMax;
+    cp.treeLevel += 1;
+    cp.treeXPMax = Math.round(cp.treeXPMax * 1.3);
+    applyTreeLevelBonus(job, cp.treeLevel);
+  }
+}
+
+function refreshClassButtons() {
+  if (!isTouchDevice) return;
+  const job = playerStats.job;
+  const btn1 = document.getElementById('powerPunchBtn');
+  const btn2 = document.getElementById('rageBtn');
+  const btn3 = document.getElementById('supportBtn');
+  const skillIconBtn = document.getElementById('skillBtn');
+  if (titanState.active) {
+    skillIconBtn.style.display = 'flex'; skillIconBtn.textContent = '👣';
+    btn1.style.display = 'flex'; btn1.textContent = '🛡️';
+    btn2.style.display = 'flex'; btn2.textContent = '👊';
+    btn3.style.display = 'flex'; btn3.textContent = '🔵';
+    return;
+  }
+  refreshWeaponSkillButton();
+  if (job === 'cameraman2') {
+    btn1.style.display = 'flex'; btn1.textContent = '🔫';
+    btn2.style.display = 'flex'; btn2.textContent = '🔃';
+    btn3.style.display = isSkillUnlocked('support2', 'cameraman2') ? 'flex' : 'none'; btn3.textContent = '📣';
+  } else if (job === 'cameraman') {
+    btn1.style.display = 'flex'; btn1.textContent = '👊';
+    btn2.style.display = isSkillUnlocked('rage', 'cameraman') ? 'flex' : 'none'; btn2.textContent = '🔥';
+    btn3.style.display = isSkillUnlocked('support', 'cameraman') ? 'flex' : 'none'; btn3.textContent = '📣';
+  } else if (job === 'giant_cameraman') {
+    btn1.style.display = 'flex'; btn1.textContent = '👊';
+    btn2.style.display = isSkillUnlocked('body_slam', 'giant_cameraman') ? 'flex' : 'none'; btn2.textContent = '💥';
+    btn3.style.display = isSkillUnlocked('grab_throw', 'giant_cameraman') ? 'flex' : 'none'; btn3.textContent = '🤾';
+  } else {
+    btn1.style.display = 'none';
+    btn2.style.display = 'none';
+    btn3.style.display = 'none';
+  }
+}
+
+function openJobDialog() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  const reqTextEl = document.getElementById('jobReqText');
+  const reqListEl = document.getElementById('jobReqList');
+  const actionBtn = document.getElementById('jobActionBtn');
+  actionBtn.style.display = 'none';
+  reqListEl.innerHTML = '';
+
+  const req = JOB_REQUIREMENTS.cameraman;
+
+  if (playerStats.job === 'cameraman') {
+    reqTextEl.textContent = '이미 카메라맨으로 전직했어. 스킬트리(🌳)에서 스킬을 확인해봐.';
+  } else if (jobQuestState.status === 'not_started') {
+    if (playerStats.level < req.level) {
+      reqTextEl.textContent = '아직 준비가 안 됐어. 레벨 ' + req.level + ' 이후에 다시 찾아와. (현재 Lv.' + playerStats.level + ')';
+    } else {
+      reqTextEl.textContent = '카메라맨이 되고 싶어? 코인 ' + req.coins + '개를 모으고, 뚫어뻥 던지기를 ' +
+        req.weaponSkillUses + '번 쓰고, 스키비디 토일렛을 ' + req.toiletKills + '마리 처치해와.';
+      actionBtn.textContent = '전직 퀘스트 수락';
+      actionBtn.style.display = 'block';
+      actionBtn.onclick = () => {
+        jobQuestState.status = 'active';
+        centerMsg('전직 퀘스트 수락: 카메라맨');
+        updateJobQuestTracker();
+        closeJobDialog();
+      };
+    }
+
+  } else if (jobQuestState.status === 'active') {
+    const items = [
+      { label:'레벨', have:playerStats.level, need:req.level },
+      { label:'코인', have:playerStats.coins, need:req.coins },
+      { label:'뚫어뻥 던지기 사용', have:playerStats.weaponSkillUses, need:req.weaponSkillUses },
+      { label:'스키비디 토일렛 처치', have:playerStats.toiletKills, need:req.toiletKills },
+    ];
+    reqTextEl.textContent = '전직 퀘스트 진행 중이야. 조건을 다 채우면 다시 찾아와.';
+    reqListEl.innerHTML = items.map(it => {
+      const ok = it.have >= it.need;
+      return `<div style="color:${ok ? '#3cff8b' : '#ff8a98'}">${ok ? '✅' : '❌'} ${it.label}: ${Math.min(it.have,it.need)} / ${it.need}</div>`;
+    }).join('');
+
+    const allMet = items.every(it => it.have >= it.need);
+    if (allMet) {
+      actionBtn.textContent = '카메라맨으로 전직하기';
+      actionBtn.style.display = 'block';
+      actionBtn.onclick = () => {
+        playerStats.coins -= req.coins;
+        playerStats.job = 'cameraman';
+        playerStats.classProgress.cameraman = { treeXP:0, treeXPMax:40, treeLevel:1, atkBonus:0, defBonus:0 };
+        jobQuestState.status = 'completed';
+        centerMsg('🎥 카메라맨으로 전직했다!');
+        updateHUD();
+        refreshClassButtons();
+        updateJobQuestTracker();
+        closeJobDialog();
+      };
+    }
+  }
+  document.getElementById('jobDialog').style.display = 'flex';
+}
+function closeJobDialog() { document.getElementById('jobDialog').style.display = 'none'; }
+
+function updateJobQuestTracker() {
+  const tracker = document.getElementById('jobQuestTracker');
+  if (jobQuestState.status !== 'active') { tracker.style.display = 'none'; return; }
+  const req = JOB_REQUIREMENTS.cameraman;
+  tracker.style.display = 'block';
+  tracker.textContent = '🎥 전직 퀘스트: 코인 ' + Math.min(playerStats.coins, req.coins) + '/' + req.coins +
+    ' · 뚫어뻥 ' + Math.min(playerStats.weaponSkillUses, req.weaponSkillUses) + '/' + req.weaponSkillUses +
+    ' · 처치 ' + Math.min(playerStats.toiletKills, req.toiletKills) + '/' + req.toiletKills;
+}
+
+
+function renderSkillTree() {
+  const sub = document.getElementById('skillTreeSub');
+  const xpLine = document.getElementById('skillTreeXPLine');
+  const list = document.getElementById('skillTreeList');
+
+  if (!playerStats.job) {
+    sub.textContent = '아직 직업이 없어요. 카메라맨 NPC에게 말을 걸어 전직해보세요.';
+    xpLine.textContent = '';
+    list.innerHTML = '';
+    return;
+  }
+
+  const job = playerStats.job;
+  const classDef = CLASS_DB[job];
+  const cp = playerStats.classProgress[job];
+  const maxed = cp.treeLevel >= classDef.maxTreeLevel;
+
+  sub.textContent = classDef.name + ' — 트리 레벨 ' + cp.treeLevel + ' / ' + classDef.maxTreeLevel + (maxed && job === 'cameraman' ? ' (2차전직 조건 달성!)' : '');
+  xpLine.innerHTML = !maxed
+    ? `<div class="bar-bg" style="height:10px;"><div style="height:100%;width:${Math.min(100, cp.treeXP/cp.treeXPMax*100)}%;background:linear-gradient(90deg,#3cff8b,#0fd45f);"></div></div>
+       <div style="font-size:11px;color:#9dffc4;margin-top:4px;">${cp.treeXP} / ${cp.treeXPMax} (적 처치로만 획득)</div>`
+    : job === 'cameraman'
+      ? '<div style="color:#3cff8b;">스킬트리 최대 레벨 달성! 직업 선택창(💼)에서 2차전직에 도전할 수 있어요.</div>'
+      : '<div style="color:#9dffc4;">보유한 스킬을 모두 사용할 수 있어요.</div>';
+
+  list.innerHTML = Object.entries(classDef.skills).map(([id, s]) => {
+    const unlocked = isSkillUnlocked(id);
+    return `<div class="travelOption" style="${unlocked ? '' : 'opacity:0.45;'}">
+      <b>${s.icon} ${s.name} ${unlocked ? '' : '(Lv.' + s.unlockLevel + ' 필요)'}</b>
+      <span>${s.desc}</span>
+    </div>`;
+  }).join('');
+}
+function openSkillTree() {
+  renderSkillTree();
+  document.getElementById('skillTreeModal').style.display = 'flex';
+}
+function closeSkillTree() { document.getElementById('skillTreeModal').style.display = 'none'; }
+
+// ---------- 직업 선택창 ----------
+const JOB_LIST = [
+  { id:'cameraman', name:'카메라맨', icon:'🎥', desc:'뚫어뻥을 활용한 근접형 초급 직업', getQuestState: () => jobQuestState },
+  { id:'cameraman2', name:'카메라맨 2.0', icon:'🚀', desc:'체력·방어력 보너스 증가, 제트팩 비행 + 카메라건/재장전/지원요청(3명, 0.7배)' },
+  { id:'giant_cameraman', name:'대형카메라맨', icon:'🦾', desc:'체력·방어력 보너스가 가장 높음. 강력한 펀치/몸통박치기/집어던지기 스킬 보유 (궁극기 없음)' },
+];
+const BRANCH_JOB_IDS = ['cameraman2', 'giant_cameraman']; // 카메라맨 스킬트리 만렙 시 갈라지는 2차전직
+
+const GIANT_JOB_REQUIREMENTS = { giantKills: 15, coins: 500 };
+let giantJobQuestState = { status: 'not_started', startCoins: 0, startGiantKills: 0 };
+
+function advanceToCameraman2() {
+  playerStats.job = 'cameraman2';
+  playerStats.classProgress.cameraman2 = { treeXP:0, treeXPMax:1, treeLevel:1, atkBonus:0, defBonus:CLASS_DB.cameraman2.defBonus };
+  playerState.maxHealth += CLASS_DB.cameraman2.healthBonus;
+  playerState.health = playerState.maxHealth;
+  flightState.unlocked = true;
+  player.userData.jetpackGroup.visible = true;
+  player.userData.headsetGroup.visible = true;
+  refreshPlayerSkinVisibility();
+  updateHUD();
+  refreshClassButtons();
+  centerMsg('🚀 카메라맨 2.0으로 승급했다!');
+  renderJobSelect();
+}
+
+function advanceToGiantCameraman() {
+  playerStats.job = 'giant_cameraman';
+  playerStats.classProgress.giant_cameraman = { treeXP:0, treeXPMax:40, treeLevel:1, atkBonus:0, defBonus:CLASS_DB.giant_cameraman.defBonus };
+  playerState.maxHealth += CLASS_DB.giant_cameraman.healthBonus;
+  playerState.health = playerState.maxHealth;
+  giantJobQuestState.status = 'completed';
+  refreshPlayerSkinVisibility();
+  updateHUD();
+  refreshClassButtons();
+  updateGiantJobQuestTracker();
+  centerMsg('🦾 대형카메라맨으로 승급했다! 스킨이 바뀌었어');
+  renderJobSelect();
+  closeGiantJobDialog();
+}
+
+function openGiantJobDialog() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  const textEl = document.getElementById('giantJobText');
+  const actionBtn = document.getElementById('giantJobActionBtn');
+  actionBtn.style.display = 'none';
+
+  const treeMaxed = playerStats.classProgress.cameraman && playerStats.classProgress.cameraman.treeLevel >= CLASS_DB.cameraman.maxTreeLevel;
+  const req = GIANT_JOB_REQUIREMENTS;
+
+  if (playerStats.classProgress.giant_cameraman) {
+    textEl.textContent = '이미 대형카메라맨이야. 든든하지? 직업창(💼)에서 언제든 다시 선택할 수 있어.';
+  } else if (!treeMaxed) {
+    textEl.textContent = '아직 준비가 안 됐어. 카메라맨 스킬트리를 먼저 만렙 찍고 다시 와.';
+  } else if (giantJobQuestState.status === 'not_started') {
+    textEl.textContent = '대형카메라맨이 되고 싶어? 대형 토일렛을 ' + req.giantKills + '마리 처치하고, 코인 ' + req.coins + '개를 모아와. (지금부터 새로 세어줄게)';
+    actionBtn.textContent = '전직 퀘스트 수락';
+    actionBtn.style.display = 'block';
+    actionBtn.onclick = () => {
+      giantJobQuestState.status = 'active';
+      giantJobQuestState.startCoins = playerStats.coins;
+      giantJobQuestState.startGiantKills = playerStats.giantToiletKills;
+      centerMsg('전직 퀘스트 수락: 대형카메라맨');
+      updateGiantJobQuestTracker();
+      closeGiantJobDialog();
+    };
+  } else if (giantJobQuestState.status === 'active') {
+    const killProgress = Math.max(0, playerStats.giantToiletKills - giantJobQuestState.startGiantKills);
+    const coinProgress = Math.max(0, playerStats.coins - giantJobQuestState.startCoins);
+    const items = [
+      { label:'대형 토일렛 처치', have:killProgress, need:req.giantKills },
+      { label:'코인 모으기', have:coinProgress, need:req.coins },
+    ];
+    textEl.innerHTML = '전직 퀘스트 진행 중이야. 조건을 다 채우면 다시 찾아와.<br><br>' + items.map(it => {
+      const ok = it.have >= it.need;
+      return `<span style="color:${ok ? '#3cff8b' : '#ff8a98'}">${ok ? '✅' : '❌'} ${it.label}: ${Math.min(it.have, it.need)} / ${it.need}</span>`;
+    }).join('<br>');
+    if (items.every(it => it.have >= it.need)) {
+      actionBtn.textContent = '대형카메라맨으로 전직하기';
+      actionBtn.style.display = 'block';
+      actionBtn.onclick = advanceToGiantCameraman;
+    }
+  }
+  document.getElementById('giantJobDialog').style.display = 'flex';
+}
+function closeGiantJobDialog() { document.getElementById('giantJobDialog').style.display = 'none'; }
+
+function updateGiantJobQuestTracker() {
+  const tracker = document.getElementById('giantJobQuestTracker');
+  if (giantJobQuestState.status !== 'active') { tracker.style.display = 'none'; return; }
+  const req = GIANT_JOB_REQUIREMENTS;
+  const killProgress = Math.max(0, playerStats.giantToiletKills - giantJobQuestState.startGiantKills);
+  const coinProgress = Math.max(0, playerStats.coins - giantJobQuestState.startCoins);
+  tracker.style.display = 'block';
+  tracker.textContent = '🦾 전직 퀘스트: 대형 토일렛 ' + Math.min(killProgress, req.giantKills) + '/' + req.giantKills +
+    ' · 코인 ' + Math.min(coinProgress, req.coins) + '/' + req.coins;
+}
+
+function switchJob(jobId) {
+  if (playerStats.job === jobId) return;
+  if (!playerStats.classProgress[jobId]) { centerMsg('아직 전직하지 않은 직업이에요'); return; }
+  if (titanState.active) { centerMsg('타이탄 모드 중에는 직업을 바꿀 수 없어요'); return; }
+  playerStats.job = jobId;
+  refreshPlayerSkinVisibility();
+  refreshClassButtons();
+  updateHUD();
+  renderJobSelect();
+  centerMsg('직업 변경: ' + CLASS_DB[jobId].name);
+}
+
+function renderJobSelect() {
+  const list = document.getElementById('jobSelectList');
+  const treeMaxed = playerStats.classProgress.cameraman && playerStats.classProgress.cameraman.treeLevel >= CLASS_DB.cameraman.maxTreeLevel;
+  list.innerHTML = JOB_LIST.map(j => {
+    const unlocked = j.id === 'cameraman' ? (jobQuestState.status === 'completed') : !!playerStats.classProgress[j.id];
+    const isCurrent = playerStats.job === j.id;
+    let badge = '🔒 잠김';
+    let extraBtn = '';
+    if (isCurrent) {
+      badge = '⭐ 사용 중';
+    } else if (unlocked) {
+      badge = '✅ 보유 중';
+      extraBtn = `<button class="btn-primary btn-green" style="margin-top:10px;" onclick="switchJob('${j.id}')">이 직업 사용하기</button>`;
+    } else if (j.id === 'cameraman2') {
+      if (treeMaxed) {
+        badge = '';
+        extraBtn = `<button class="btn-primary btn-green" style="margin-top:10px;" onclick="advanceToCameraman2()">승급하기</button>`;
+      } else {
+        badge = '🔒 잠김 (카메라맨 스킬트리 만렙 필요)';
+      }
+    } else if (j.id === 'giant_cameraman') {
+      badge = '🔒 잠김 (기지의 대형카메라맨에게 전직 퀘스트를 받아와)';
+    }
+    return `<div class="travelOption" style="${unlocked || (j.id === 'cameraman2' && treeMaxed) ? '' : 'opacity:0.5;'}">
+      <b>${j.icon} ${j.name} <span style="font-size:12px;">${badge}</span></b>
+      <span>${j.desc}</span>
+      ${extraBtn}
+    </div>`;
+  }).join('') + '<div class="sub" style="margin-top:14px;">2차 전직은 둘 다 얻을 수 있고, 언제든 여기서 바꿔 쓸 수 있어요. 새로운 직업은 계속 추가될 예정이에요.</div>';
+}
+function openJobSelect() {
+  renderJobSelect();
+  document.getElementById('jobSelectModal').style.display = 'flex';
+}
+function closeJobSelect() { document.getElementById('jobSelectModal').style.display = 'none'; }
+
+// ---------- 타이탄 창 (각성 가능한 타이탄 목록 — 지금은 타이탄 카메라맨뿐, 추후 추가 예정) ----------
+const TITAN_LIST = [
+  {
+    id: 'titan_cameraman', name: '타이탄 카메라맨', icon: '🔵',
+    coreItem: 'titan_cameraman_core',
+    descFn: () => '체력 +' + TITAN_HEALTH_BONUS + ', 방어력 +' + TITAN_DEF_BONUS + ', 데미지 x' + TITAN_DMG_MULT + '. 변신 유지 ' + TITAN_DURATION + '초 / 재사용 ' + TITAN_COOLDOWN + '초.',
+    skills: [
+      { icon:'👣', name:'내려찍기', desc:'다리로 강하게 밟아 주변에 광역 피해' },
+      { icon:'🛡️', name:'방패모드', desc:'등 뒤에서 방패를 꺼내 피해 60% 감소 + 방어력 상승' },
+      { icon:'👊', name:'강력한 펀치', desc:'전방 강타' },
+      { icon:'🔵', name:'코어브레스 (궁극기)', desc:'등 뒤 코어에서 파란 빛을 뿜어 전방을 관통하는 필살기' },
+    ],
+  },
+];
+
+function renderTitanSelect() {
+  const list = document.getElementById('titanSelectList');
+  list.innerHTML = TITAN_LIST.map(t => {
+    const owned = playerStats.equipment.titan === t.coreItem || titanState.unlocked;
+    const badge = owned ? '⭐ 각성 가능' : '🔒 잠김 (' + t.name + '의 코어 필요)';
+    return `<div class="travelOption" style="${owned ? '' : 'opacity:0.55;'}">
+      <b>${t.icon} ${t.name} <span style="font-size:12px;">${badge}</span></b>
+      <span>${t.descFn()}</span>
+      <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px;">
+        ${t.skills.map(s => `<span style="font-size:12px; color:#bcd9ff;">${s.icon} <b>${s.name}</b> — ${s.desc}</span>`).join('')}
+      </div>
+    </div>`;
+  }).join('') + '<div class="sub" style="margin-top:14px;">새로운 타이탄은 계속 추가될 예정이에요.</div>';
+}
+function openTitanSelect() {
+  renderTitanSelect();
+  document.getElementById('titanSelectModal').style.display = 'flex';
+}
+function closeTitanSelect() { document.getElementById('titanSelectModal').style.display = 'none'; }
+
+
+function updateHUD() {
+  document.getElementById('hpLabel').textContent = playerState.health + ' / ' + playerState.maxHealth;
+  document.getElementById('hpBar').style.width = Math.max(0, playerState.health/playerState.maxHealth*100) + '%';
+  document.getElementById('lvLabel').textContent = 'Lv. ' + playerStats.level;
+  document.getElementById('xpLabel').textContent = playerStats.xp + ' / ' + playerStats.xpMax + ' XP';
+  document.getElementById('xpBar').style.width = Math.min(100, playerStats.xp/playerStats.xpMax*100) + '%';
+  document.getElementById('coinPanel').textContent = '🪙 ' + playerStats.coins;
+  const s = computeEquipStats();
+  document.getElementById('atkVal').textContent = s.atk;
+  document.getElementById('defVal').textContent = s.def;
+
+  const hint = document.getElementById('jobLevelHint');
+  const reqLv = JOB_REQUIREMENTS.cameraman.level;
+  if (!playerStats.job && playerStats.level < reqLv) {
+    hint.textContent = '🎥 카메라맨 전직: Lv.' + reqLv + ' 필요 (현재 Lv.' + playerStats.level + ')';
+    hint.style.display = 'block';
+  } else {
+    hint.style.display = 'none';
+  }
+
+  updateJobQuestTracker();
+  updateGiantJobQuestTracker();
+}
+
+function renderInventory() {
+  const s = computeEquipStats();
+  document.getElementById('atkVal').textContent = s.atk;
+  document.getElementById('defVal').textContent = s.def;
+
+  ['weapon','head','chest','legs','feet','titan'].forEach(slot => {
+    const el = document.getElementById('slot_' + slot);
+    if (!el) return;
+    const itemId = playerStats.equipment[slot];
+    if (itemId) {
+      const item = ITEM_DB[itemId];
+      const statTxt = slot === 'weapon' ? ('ATK +' + item.atk) : (slot === 'titan' ? '🔵 C키로 각성' : ('DEF +' + item.def));
+      el.classList.add('filled');
+      el.innerHTML = `<div class="slotLabel">${SLOT_LABEL[slot]}</div>
+                       <div class="icon">${item.icon}</div>
+                       <div class="itemName">${item.name}</div>
+                       <div class="statTxt">${statTxt}</div>`;
+    } else {
+      el.classList.remove('filled');
+      el.innerHTML = `<div class="slotLabel">${SLOT_LABEL[slot]}</div><div class="icon">➕</div>`;
+    }
+  });
+
+  const grid = document.getElementById('invGrid');
+  grid.innerHTML = '';
+  for (let i = 0; i < playerStats.invCapacity; i++) {
+    const entry = playerStats.inventory[i];
+    const slotDiv = document.createElement('div');
+    if (entry) {
+      const item = ITEM_DB[entry.itemId];
+      slotDiv.className = 'invSlot';
+      slotDiv.innerHTML = `<div class="icon">${item.icon}</div>
+                            <div class="itemName">${item.name}</div>
+                            ${entry.qty > 1 ? `<div class="qty">x${entry.qty}</div>` : ''}`;
+      slotDiv.addEventListener('click', () => {
+        if (item.slot === 'consumable') useConsumable(entry.itemId);
+        else if (item.slot === 'material') centerMsg('퀘스트 제출용 재료 아이템이에요');
+        else equipItem(entry.itemId);
+      });
+    } else {
+      slotDiv.className = 'invSlot empty';
+    }
+    grid.appendChild(slotDiv);
+  }
+}
+
+function openInventory() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  renderInventory();
+  document.getElementById('invModal').style.display = 'flex';
+}
+function closeInventory() { document.getElementById('invModal').style.display = 'none'; }
+
+function useConsumable(itemId) {
+  const item = ITEM_DB[itemId];
+  if (item.heal) { heal(item.heal); centerMsg('체력 ' + item.heal + ' 회복!'); }
+  removeItem(itemId, 1); renderInventory();
+}
+
+function renderShop() {
+  document.getElementById('shopCoinVal').textContent = playerStats.coins;
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = '';
+  SHOP_ITEMS.forEach(entry => {
+    const item = ITEM_DB[entry.itemId];
+    const canAfford = playerStats.coins >= entry.price;
+    const div = document.createElement('div');
+    div.className = 'shopItem' + (canAfford ? '' : ' cantAfford');
+    div.innerHTML = `<div class="icon">${item.icon}</div>
+                      <div class="itemName">${item.name}</div>
+                      <div class="price">🪙 ${entry.price}</div>`;
+    div.addEventListener('click', () => buyItem(entry.itemId, entry.price, div));
+    grid.appendChild(div);
+  });
+}
+
+// ---------- 구매 파티클 이펙트 ----------
+const shopParticles = [];
+function spawnPurchaseBurst() {
+  const s = MAP_DATA.SHOP_LOCATION;
+  const mat = new THREE.MeshStandardMaterial({ color:0xffd166, emissive:0xffb300, emissiveIntensity:0.6 });
+  for (let i = 0; i < 14; i++) {
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), mat);
+    p.position.set(s.x + (Math.random()-0.5)*0.6, 1.2, s.z + (Math.random()-0.5)*0.6);
+    baseGroup.add(p);
+    shopParticles.push({
+      mesh: p, vx: (Math.random()-0.5)*3, vy: Math.random()*3.5 + 2, vz: (Math.random()-0.5)*3, life: 0.7,
+    });
+  }
+}
+function updateShopParticles(dt) {
+  for (let i = shopParticles.length-1; i >= 0; i--) {
+    const p = shopParticles[i];
+    p.life -= dt;
+    if (p.life <= 0) { if (p.mesh.parent) p.mesh.parent.remove(p.mesh); shopParticles.splice(i,1); continue; }
+    p.vy -= 9*dt;
+    p.mesh.position.x += p.vx*dt; p.mesh.position.y += p.vy*dt; p.mesh.position.z += p.vz*dt;
+    p.mesh.material.opacity = p.life/0.7; p.mesh.material.transparent = true;
+  }
+}
+
+// ---------- 제트팩 불꽃 이펙트 ----------
+const flightParticles = [];
+let flameSpawnTimer = 0;
+function spawnFlightFlame(dt) {
+  flameSpawnTimer -= dt;
+  if (flameSpawnTimer > 0) return;
+  flameSpawnTimer = 0.03;
+  const exhausts = player.userData.jetpackExhausts;
+  if (!exhausts) return;
+  exhausts.forEach(ex => {
+    const worldPos = new THREE.Vector3();
+    ex.getWorldPosition(worldPos);
+    const mat = new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xff9f1c : 0xffe066, transparent:true, opacity:0.9 });
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 6), mat);
+    p.position.copy(worldPos);
+    scene.add(p);
+    flightParticles.push({
+      mesh: p, life: 0.35,
+      vx: (Math.random()-0.5)*0.6, vy: -2.2 - Math.random()*1.2, vz: (Math.random()-0.5)*0.6,
+    });
+  });
+}
+function updateFlightParticles(dt) {
+  for (let i = flightParticles.length-1; i >= 0; i--) {
+    const p = flightParticles[i];
+    p.life -= dt;
+    if (p.life <= 0) { if (p.mesh.parent) p.mesh.parent.remove(p.mesh); flightParticles.splice(i,1); continue; }
+    p.mesh.position.x += p.vx*dt; p.mesh.position.y += p.vy*dt; p.mesh.position.z += p.vz*dt;
+    p.mesh.material.opacity = p.life/0.35;
+    const s = 0.09 * (p.life/0.35);
+    p.mesh.scale.set(s/0.09, s/0.09, s/0.09);
+  }
+}
+
+function buyItem(itemId, price, cardEl) {
+  if (playerStats.coins < price) { centerMsg('코인이 부족해요!'); return; }
+  if (!addItem(itemId, 1)) { centerMsg('인벤토리가 가득 찼어요!'); return; }
+  playerStats.coins -= price;
+  centerMsg('구매 완료: ' + ITEM_DB[itemId].icon + ' ' + ITEM_DB[itemId].name);
+  spawnPurchaseBurst();
+  if (cardEl) {
+    cardEl.classList.remove('purchaseFlash'); void cardEl.offsetWidth; cardEl.classList.add('purchaseFlash');
+  }
+  updateHUD(); renderShop();
+}
+
+function openShop() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  renderShop(); document.getElementById('shopModal').style.display = 'flex';
+}
+function closeShop() { document.getElementById('shopModal').style.display = 'none'; }
+
+const camState = { theta: Math.PI, phi: 0.55, distance: 8, targetTheta: Math.PI, targetPhi: 0.55 };
+
+if (!isTouchDevice) {
+  renderer.domElement.addEventListener('click', () => {
+    if (!gameRunning) return;
+    if (document.pointerLockElement !== renderer.domElement) {
+      renderer.domElement.requestPointerLock();
+    } else {
+      attack();
+    }
+  });
+  document.addEventListener('mousemove', e => {
+    if (document.pointerLockElement !== renderer.domElement) return;
+    camState.targetTheta -= e.movementX * 0.0028;
+    camState.targetPhi = Math.max(0.15, Math.min(1.3, camState.targetPhi + e.movementY * 0.0028));
+  });
+}
+renderer.domElement.addEventListener('wheel', e => {
+  camState.distance = Math.max(4, Math.min(16, camState.distance + e.deltaY*0.01));
+});
+
+function updateCamera() {
+  camState.theta += (camState.targetTheta - camState.theta) * 0.2;
+  camState.phi += (camState.targetPhi - camState.phi) * 0.2;
+  const target = player.position.clone().add(new THREE.Vector3(0, 1.8, 0));
+  const x = target.x + camState.distance * Math.sin(camState.theta) * Math.cos(camState.phi);
+  const y = target.y + camState.distance * Math.sin(camState.phi) + 1.2;
+  const z = target.z + camState.distance * Math.cos(camState.theta) * Math.cos(camState.phi);
+  camera.position.set(x,y,z); camera.lookAt(target);
+}
+
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Space') { e.preventDefault(); jumpHeld = true; tryJump(); }
+  if (e.code === 'KeyE') attack();
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') tryDash();
+  if (e.code === 'KeyQ') throwPlunger();
+  if (e.code === 'KeyR') useSkillSlot1();
+  if (e.code === 'KeyT') useSkillSlot2();
+  if (e.code === 'KeyG') useSupport();
+  if (e.code === 'KeyC') tryTitanTransform();
+});
+window.addEventListener('keyup', e => {
+  keys[e.code] = false;
+  if (e.code === 'Space') jumpHeld = false;
+});
+
+// ---------- 카메라맨 2.0 제트팩 비행 ----------
+const flightState = { unlocked: false, active: false, timer: 0, cooldown: 0 };
+const FLIGHT_DURATION = 10.0;
+const FLIGHT_COOLDOWN = 15.0;
+const FLIGHT_SPEED_MULT = 1.4;   // 걷는 것보단 빠름
+const FLIGHT_ASCEND_SPEED = 6.0;
+const FLIGHT_DESCEND_SPEED = 2.0;
+let jumpHeld = false; // 비행 중 상승 입력 감지용 (스페이스/모바일 점프버튼 홀드)
+
+function tryJump() {
+  if (playerState.onGround) {
+    playerState.velocityY = 10.0;
+    playerState.onGround = false;
+  } else if (flightState.unlocked && !flightState.active && flightState.cooldown <= 0) {
+    // 공중에서 한 번 더 입력 -> 제트팩 비행 시작 (2단 점프)
+    flightState.active = true;
+    flightState.timer = FLIGHT_DURATION;
+    centerMsg('🚀 제트팩 가동!');
+  }
+}
+
+const attackState = { cooldown: 0 };
+const ATTACK_COOLDOWN = 0.45;
+
+function attack() {
+  if (!gameRunning || attackState.cooldown > 0) return;
+  attackState.cooldown = ATTACK_COOLDOWN * (rageState.active ? 0.5 : 1);
+  
+  // 공격 애니메이션 처리
+  if (player.userData && player.userData.armR) {
+    player.userData.isAttacking = true;
+    player.userData.armR.rotation.x = -Math.PI / 1.5;
+    setTimeout(() => {
+      player.userData.armR.rotation.x = Math.PI / 4;
+      setTimeout(() => { player.userData.isAttacking = false; }, 150);
+    }, 100);
+  }
+
+  if (currentMapId === 'ruined_city') {
+    const range = 2.5; const dmg = computeEquipStats().atk;
+    enemies.forEach(en => {
+      if (en.dead) return;
+      const dist = Math.hypot(en.x - player.position.x, en.z - player.position.z);
+      if (dist < range) { en.health -= dmg; if (en.health <= 0) killEnemy(en); }
+    });
+  }
+}
+
+const dashState = { cooldown: 0, timer: 0, dir: {x:0, z:1} };
+const DASH_DURATION = 0.18; const DASH_COOLDOWN = 1.3; const DASH_SPEED = 24;
+
+function tryDash() {
+  if (!gameRunning || dashState.cooldown > 0) return;
+  dashState.dir = { x: Math.sin(player.rotation.y), z: Math.cos(player.rotation.y) };
+  dashState.timer = DASH_DURATION; dashState.cooldown = DASH_COOLDOWN;
+}
+
+const skillState = { cooldown: 0 };
+const SKILL_COOLDOWN = 3.0;
+const SKILL_RANGE = 14;
+
+function throwPlungerEffect(fromVec, toVec, color = 0xffe066) {
+  const dir = new THREE.Vector3().subVectors(toVec, fromVec);
+  const len = Math.max(0.1, dir.length());
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, len, 6),
+    new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.9 })
+  );
+  mesh.position.copy(fromVec).addScaledVector(dir, 0.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+  cityGroup.add(mesh);
+  setTimeout(() => { if (mesh.parent) mesh.parent.remove(mesh); }, 200);
+}
+
+function throwPlunger() {
+  if (titanState.active) { useTitanStomp(); return; }
+  if (!gameRunning || skillState.cooldown > 0) return;
+  if (playerStats.equipment.weapon !== 'plunger') { centerMsg('뚫어뻥을 장착해야 사용할 수 있어요'); return; }
+  if (currentMapId !== 'ruined_city') { centerMsg('무너진 도시에서만 사용할 수 있어요'); return; }
+
+  let nearest = null, nearestDist = Infinity;
+  enemies.forEach(en => {
+    if (en.dead) return;
+    const dist = Math.hypot(en.x - player.position.x, en.z - player.position.z);
+    if (dist < nearestDist) { nearest = en; nearestDist = dist; }
+  });
+  if (!nearest || nearestDist > SKILL_RANGE) { centerMsg('사거리 내에 적이 없어요'); return; }
+
+  skillState.cooldown = SKILL_COOLDOWN;
+  playerStats.weaponSkillUses++;
+  updateJobQuestTracker();
+  
+  if (player.userData && player.userData.armR) {
+    player.userData.isAttacking = true;
+    player.userData.armR.rotation.x = -Math.PI;
+    setTimeout(() => {
+      player.userData.armR.rotation.x = 0;
+      player.userData.isAttacking = false;
+    }, 200);
+  }
+
+  const dmg = computeEquipStats().atk + 6;
+  throwPlungerEffect(
+    player.position.clone().add(new THREE.Vector3(0, 1.8, 0)),
+    new THREE.Vector3(nearest.x, 1.0, nearest.z)
+  );
+  centerMsg('🪠 뚫어뻥 던지기!');
+  nearest.weaponSkillHit = true;
+  nearest.health -= dmg;
+  if (nearest.health <= 0) killEnemy(nearest, 'weapon_skill');
+}
+
+const powerPunchState = { cooldown: 0 };
+const POWER_PUNCH_COOLDOWN = 4.0;
+
+function usePowerPunch() {
+  if (!gameRunning || playerStats.job !== 'cameraman' || !isSkillUnlocked('power_punch', 'cameraman')) return;
+  if (powerPunchState.cooldown > 0) return;
+  powerPunchState.cooldown = POWER_PUNCH_COOLDOWN;
+
+  if (player.userData && player.userData.armR) {
+    player.userData.isAttacking = true;
+    player.userData.armR.rotation.x = -Math.PI/1.2;
+    setTimeout(() => {
+      player.userData.armR.rotation.x = Math.PI/2;
+      setTimeout(() => { player.userData.isAttacking = false; }, 200);
+    }, 150);
+  }
+
+  centerMsg('👊 강력펀치!');
+  if (currentMapId === 'ruined_city') {
+    const range = 2.6;
+    const dmg = computeEquipStats().atk * 2 + 4;
+    enemies.forEach(en => {
+      if (en.dead) return;
+      const dist = Math.hypot(en.x - player.position.x, en.z - player.position.z);
+      if (dist < range) { en.health -= dmg; if (en.health <= 0) killEnemy(en); }
+    });
+  }
+}
+
+// ---------- 대형카메라맨 스킬1: 강력한 펀치 (처음부터 사용 가능) ----------
+const GIANT_PUNCH_COOLDOWN = 2.2;
+function useGiantPunch() {
+  if (!gameRunning || playerStats.job !== 'giant_cameraman') return;
+  if (powerPunchState.cooldown > 0) return;
+  powerPunchState.cooldown = GIANT_PUNCH_COOLDOWN;
+  const body = getActiveBodyMesh();
+  if (body.userData && body.userData.armR) {
+    body.userData.isAttacking = true;
+    body.userData.armR.rotation.x = -Math.PI/1.2;
+    setTimeout(() => {
+      body.userData.armR.rotation.x = Math.PI/2;
+      setTimeout(() => { body.userData.isAttacking = false; }, 200);
+    }, 150);
+  }
+  centerMsg('👊 강력한 펀치!');
+  if (currentMapId === 'ruined_city') {
+    const range = 2.8;
+    const dmg = computeEquipStats().atk * 2.2 + 5;
+    enemies.forEach(en => {
+      if (en.dead || en.isBeingThrown) return;
+      const dist = Math.hypot(en.x - player.position.x, en.z - player.position.z);
+      if (dist < range) { en.health -= dmg; if (en.health <= 0) killEnemy(en); }
+    });
+  }
+}
+
+// ---------- 대형카메라맨 스킬2: 몸통박치기 (스킬트리 레벨2 해금) — 광역 피해 + 자신과 비슷하거나 작은 적 기절 ----------
+const GIANT_BODYSLAM_COOLDOWN = 6.0;
+const GIANT_BODYSLAM_RANGE = 3.4;
+const GIANT_BODYSLAM_STUN = 3.0;
+function useBodySlam() {
+  if (!gameRunning || playerStats.job !== 'giant_cameraman' || !isSkillUnlocked('body_slam', 'giant_cameraman')) return;
+  if (rageState.cooldown > 0) return;
+  rageState.cooldown = GIANT_BODYSLAM_COOLDOWN;
+  const body = getActiveBodyMesh();
+  if (body.userData) {
+    body.userData.isAttacking = true;
+    setTimeout(() => { body.userData.isAttacking = false; }, 300);
+  }
+  spawnImpactBurst(player.position, 0xffcf6b, 14);
+  spawnRingShockwave(player.position, 0xffcf6b, GIANT_BODYSLAM_RANGE + 1, 0.5);
+  centerMsg('💥 몸통박치기!');
+  if (currentMapId === 'ruined_city') {
+    const mySize = CLASS_DB.giant_cameraman.sizeScale;
+    const dmg = computeEquipStats().atk * 1.6 + 6;
+    enemies.forEach(en => {
+      if (en.dead || en.isBeingThrown) return;
+      const dist = Math.hypot(en.x - player.position.x, en.z - player.position.z);
+      if (dist >= GIANT_BODYSLAM_RANGE) return;
+      en.health -= dmg;
+      if (en.health <= 0) { killEnemy(en); return; }
+      const enDef = ENEMY_DB[en.type];
+      if (enDef.sizeScale <= mySize) {
+        en.stunTimer = GIANT_BODYSLAM_STUN;
+        centerMsg('💫 ' + enDef.name + ' 기절!');
+      }
+    });
+  }
+}
+
+// ---------- 대형카메라맨 스킬3: 집어던지기 (스킬트리 만렙 해금) — 자신보다 작은 적을 집어서 던짐 ----------
+const GIANT_THROW_COOLDOWN = 8.0;
+const GIANT_THROW_RANGE = 3.2;
+function useGiantGrabThrow() {
+  if (!gameRunning || playerStats.job !== 'giant_cameraman' || !isSkillUnlocked('grab_throw', 'giant_cameraman')) return;
+  if (supportState.cooldown > 0) return;
+  if (currentMapId !== 'ruined_city') { centerMsg('무너진 도시에서만 사용할 수 있어요'); return; }
+  const mySize = CLASS_DB.giant_cameraman.sizeScale;
+  let target = null, nd = Infinity;
+  enemies.forEach(en => {
+    if (en.dead || en.isBeingThrown) return;
+    const enDef = ENEMY_DB[en.type];
+    if (enDef.sizeScale >= mySize) return; // 자신보다 작은 적만 집을 수 있음
+    const dist = Math.hypot(en.x - player.position.x, en.z - player.position.z);
+    if (dist < GIANT_THROW_RANGE && dist < nd) { nd = dist; target = en; }
+  });
+  if (!target) { centerMsg('집어던질 만한 작은 적이 근처에 없어요'); return; }
+  supportState.cooldown = GIANT_THROW_COOLDOWN;
+  centerMsg('🤾 집어던지기!');
+  const dmg = computeEquipStats().atk * 2.5 + 10;
+  const fwd = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
+  const throwDist = 8;
+  const targetX = player.position.x + fwd.x * throwDist;
+  const targetZ = player.position.z + fwd.z * throwDist;
+  const mesh = target.mesh;
+  const startX = target.x, startZ = target.z;
+  const start = performance.now();
+  const duration = 500;
+  target.isBeingThrown = true;
+  target.healthBar.sprite.visible = false;
+  function tick() {
+    const e = Math.min(1, (performance.now() - start) / duration);
+    const arc = Math.sin(e * Math.PI) * 3.5;
+    target.x = startX + (targetX - startX) * e;
+    target.z = startZ + (targetZ - startZ) * e;
+    mesh.position.set(target.x, arc, target.z);
+    mesh.rotation.x += 0.3;
+    if (e < 1) requestAnimationFrame(tick);
+    else {
+      target.isBeingThrown = false;
+      mesh.rotation.x = 0;
+      spawnImpactBurst({ x:target.x, y:0, z:target.z }, 0xffaa55, 10);
+      target.health -= dmg;
+      if (target.health <= 0) killEnemy(target);
+    }
+  }
+  tick();
+}
+
+// ---------- 카메라맨 2.0 스킬1: 카메라건 사격 (기본 스킬, 원거리) ----------
+const CAMERA_GUN_COOLDOWN = 2.5;
+const CAMERA_GUN_RANGE = 16;
+
+function fireCameraGun() {
+  if (!gameRunning || playerStats.job !== 'cameraman2') return;
+  if (powerPunchState.cooldown > 0) return;
+  if (currentMapId !== 'ruined_city') { centerMsg('무너진 도시에서만 사용할 수 있어요'); return; }
+
+  let nearest = null, nearestDist = Infinity;
+  enemies.forEach(en => {
+    if (en.dead) return;
+    const dist = Math.hypot(en.x - player.position.x, en.z - player.position.z);
+    if (dist < nearestDist) { nearestDist = dist; nearest = en; }
+  });
+  if (!nearest || nearestDist > CAMERA_GUN_RANGE) { centerMsg('사거리 내에 적이 없어요'); return; }
+
+  powerPunchState.cooldown = CAMERA_GUN_COOLDOWN;
+  const dmg = computeEquipStats().atk + 4;
+  throwPlungerEffect(
+    player.position.clone().add(new THREE.Vector3(0, 1.8, 0)),
+    new THREE.Vector3(nearest.x, 1.0, nearest.z),
+    0xffffff
+  );
+  centerMsg('🔫 카메라건 사격!');
+  nearest.health -= dmg;
+  if (nearest.health <= 0) killEnemy(nearest);
+}
+
+// ---------- 카메라맨(1.0) 스킬2: 분노 ----------
+const rageState = { cooldown: 0, active: false, timer: 0 };
+const RAGE_COOLDOWN = 20.0;
+const RAGE_DURATION = 6.0;
+
+function useRage() {
+  if (!gameRunning || playerStats.job !== 'cameraman' || !isSkillUnlocked('rage', 'cameraman')) return;
+  if (rageState.cooldown > 0) return;
+  rageState.cooldown = RAGE_COOLDOWN;
+  rageState.active = true;
+  rageState.timer = RAGE_DURATION;
+  centerMsg('🔥 분노! 속도·공격력·공속 상승');
+}
+
+// ---------- 카메라맨 2.0 스킬2: 재장전 (속도 버프 + 즉시 회복) ----------
+const reloadState = { cooldown: 0, active: false, timer: 0 };
+const RELOAD_COOLDOWN = 12.0;
+const RELOAD_DURATION = 5.0;
+const RELOAD_HEAL_PCT = 0.25;
+
+function useReload() {
+  if (!gameRunning || playerStats.job !== 'cameraman2') return;
+  if (reloadState.cooldown > 0) return;
+  reloadState.cooldown = RELOAD_COOLDOWN;
+  reloadState.active = true;
+  reloadState.timer = RELOAD_DURATION;
+  heal(playerState.maxHealth * RELOAD_HEAL_PCT);
+  centerMsg('🔃 재장전! 체력 회복 + 이동속도 상승');
+}
+
+// ---------- 스킬 슬롯 디스패처 (직업에 따라 다른 스킬 실행, 버튼/키는 공용) ----------
+function useSkillSlot1() { if (titanState.active) { useTitanShield(); return; } if (playerStats.job === 'cameraman2') fireCameraGun(); else if (playerStats.job === 'giant_cameraman') useGiantPunch(); else usePowerPunch(); }
+function useSkillSlot2() { if (titanState.active) { useTitanPunch(); return; } if (playerStats.job === 'cameraman2') useReload(); else if (playerStats.job === 'giant_cameraman') useBodySlam(); else useRage(); }
+
+const supportState = { cooldown: 0 };
+const SUPPORT_COOLDOWN = 25.0;
+const allies = [];
+
+function spawnAlly(mult = 0.6) {
+  const mesh = createBipedCameramanMesh({ bodyColor:0x556052 }); // 소환수
+  mesh.scale.set(0.85, 0.85, 0.85);
+  const ox = (Math.random()-0.5)*3, oz = (Math.random()-0.5)*3;
+  const x = player.position.x + ox, z = player.position.z + oz;
+  mesh.position.set(x, 0, z);
+  cityGroup.add(mesh);
+  allies.push({ mesh, x, z, hitCooldown:0, life:30, moving: false, mult });
+}
+
+// 지원요청 — 카메라맨(2명, 0.6배) / 카메라맨 2.0(3명, 0.7배) 공용
+function useSupport() {
+  if (titanState.active) { useTitanCoreBreath(); return; }
+  if (playerStats.job === 'giant_cameraman') { useGiantGrabThrow(); return; }
+  if (!gameRunning) return;
+  const job = playerStats.job;
+  if (job === 'cameraman') {
+    if (!isSkillUnlocked('support', 'cameraman')) return;
+  } else if (job === 'cameraman2') {
+    if (!isSkillUnlocked('support2', 'cameraman2')) return;
+  } else return;
+  if (supportState.cooldown > 0) return;
+  if (currentMapId !== 'ruined_city') { centerMsg('무너진 도시에서만 사용할 수 있어요'); return; }
+  supportState.cooldown = SUPPORT_COOLDOWN;
+  const count = job === 'cameraman2' ? 3 : 2;
+  const mult = job === 'cameraman2' ? 0.7 : 0.6;
+  centerMsg('📣 지원요청! 카메라맨 ' + count + '명 소환');
+  for (let i = 0; i < count; i++) spawnAlly(mult);
+}
+
+function updateAllies(dt) {
+  if (currentMapId !== 'ruined_city') return;
+  for (let i = allies.length-1; i >= 0; i--) {
+    const a = allies[i];
+    a.life -= dt;
+    if (a.life <= 0) { 
+      if (a.mesh.parent) a.mesh.parent.remove(a.mesh);
+      const idx = animatedCharacters.indexOf(a.mesh);
+      if(idx > -1) animatedCharacters.splice(idx, 1);
+      allies.splice(i,1); 
+      continue; 
+    }
+
+    let nearest = null, nd = Infinity;
+    enemies.forEach(en => {
+      if (en.dead) return;
+      const dist = Math.hypot(en.x - a.x, en.z - a.z);
+      if (dist < nd) { nd = dist; nearest = en; }
+    });
+
+    if (nearest && nd < 12) {
+      const dirX = (nearest.x - a.x)/nd, dirZ = (nearest.z - a.z)/nd;
+      if (nd > 1.5) {
+        a.x += dirX*3.5*dt; a.z += dirZ*3.5*dt;
+        a.mesh.position.set(a.x, 0, a.z);
+        a.mesh.rotation.y = Math.atan2(dirX, dirZ);
+        a.moving = true;
+      } else {
+        a.moving = false;
+        a.hitCooldown -= dt;
+        if (a.hitCooldown <= 0) {
+          a.hitCooldown = 1.0;
+          if (a.mesh.userData && a.mesh.userData.armR) {
+            a.mesh.userData.isAttacking = true;
+            a.mesh.userData.armR.rotation.x = -1.5;
+            setTimeout(() => { a.mesh.userData.armR.rotation.x = 0; a.mesh.userData.isAttacking = false; }, 200);
+          }
+          const dmg = computeEquipStats().atk * a.mult;
+          nearest.health -= dmg;
+          if (nearest.health <= 0) killEnemy(nearest);
+        }
+      }
+    } else {
+      const dist = Math.hypot(player.position.x - a.x, player.position.z - a.z);
+      if (dist > 3) {
+        const dirX = (player.position.x - a.x)/dist, dirZ = (player.position.z - a.z)/dist;
+        a.x += dirX*3.5*dt; a.z += dirZ*3.5*dt;
+        a.mesh.position.set(a.x, 0, a.z);
+        a.mesh.rotation.y = Math.atan2(dirX, dirZ);
+        a.moving = true;
+      } else {
+        a.moving = false;
+      }
+    }
+  }
+}
+
+const touchMove = { x:0, y:0, active:false };
+
+// ================= 타이탄 카메라맨 (각성 변신) =================
+const TITAN_HEALTH_BONUS = 1000;     // 타이탄 체력 = 1000 + 본인 체력
+const TITAN_DEF_BONUS = 40;          // 타이탄 자체 방어력 (본인 방어력에 가산)
+const TITAN_SHIELD_DEF_BONUS = 60;   // 방패모드 중 추가 방어력
+const TITAN_DMG_MULT = 10;           // 데미지 배율: (레벨업 뎀지+무기 뎀지) x10 — 가장 기본 타이탄
+const TITAN_SCALE = 4.6;
+const TITAN_DURATION = 25.0;         // 변신 유지시간
+const TITAN_COOLDOWN = 90.0;         // 궁극기급 재사용 대기시간
+
+const TITAN_STOMP_COOLDOWN = 4.0;
+const TITAN_STOMP_RANGE = 6.0;
+const TITAN_SHIELD_COOLDOWN = 9.0;
+const TITAN_SHIELD_DURATION = 4.0;
+const TITAN_PUNCH_COOLDOWN = 3.0;
+const TITAN_PUNCH_RANGE = 4.2;
+const TITAN_COREBREATH_COOLDOWN = 16.0;
+const TITAN_COREBREATH_RANGE = 20;
+
+const titanState = {
+  unlocked: false,          // 타이탄 카메라맨의 코어 장착 여부
+  active: false,            // 변신 중 여부
+  timer: 0, cooldown: 0,
+  stompCooldown: 0, shieldCooldown: 0, punchCooldown: 0, coreBreathCooldown: 0,
+  shieldActive: false, shieldTimer: 0,
+  mesh: null,
+  prevMaxHealth: 0, prevCamDistance: null, prevFov: null,
+};
+
+// ---- 거대 타이탄 메쉬 생성 (등 뒤 파란 코어 발광 포함) ----
+// ---- 대형카메라맨 전직 시 전용 스킨으로 교체 ----
+let giantSkinMesh = null;
+function createGiantSkinMesh() {
+  const g = createBipedCameramanMesh({ bodyColor:0x14161a, legColor:0x0a0a0c, headColor:0x0a0a0c, hasSuit:true, hasRigLights:true });
+  g.scale.set(1.85, 1.85, 1.85);
+  return g;
+}
+function refreshPlayerSkinVisibility() {
+  const showGiant = playerStats.job === 'giant_cameraman' && !titanState.active;
+  if (showGiant && !giantSkinMesh) {
+    giantSkinMesh = createGiantSkinMesh();
+    giantSkinMesh.visible = false;
+    scene.add(giantSkinMesh);
+  }
+  if (giantSkinMesh) giantSkinMesh.visible = showGiant;
+  player.visible = !showGiant && !titanState.active;
+}
+
+// 스킬 애니메이션을 적용할 실제 보이는 메쉬 (대형카메라맨 스킨 중엔 스킨 메쉬, 그 외엔 기본 player)
+function getActiveBodyMesh() {
+  if (playerStats.job === 'giant_cameraman' && !titanState.active && giantSkinMesh) return giantSkinMesh;
+  return player;
+}
+
+function createTitanMesh() {
+  const t = createBipedCameramanMesh({ bodyColor:0x14161a, legColor:0x0a0a0c, headColor:0x0a0a0c, hasSuit:true, hasRigLights:true });
+  t.scale.set(TITAN_SCALE, TITAN_SCALE, TITAN_SCALE);
+
+  const coreMat = new THREE.MeshStandardMaterial({ color:0x2fa8ff, emissive:0x2fa8ff, emissiveIntensity:1.8, roughness:0.3, metalness:0.4 });
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 16), coreMat);
+  core.position.set(0, 0.05, -0.28);
+  t.userData.torso.add(core);
+  const coreLight = new THREE.PointLight(0x2fa8ff, 2.4, 7);
+  coreLight.position.copy(core.position);
+  t.userData.torso.add(coreLight);
+
+  const ringMat = new THREE.MeshBasicMaterial({ color:0x2fa8ff, transparent:true, opacity:0.55, side:THREE.DoubleSide });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.36, 0.44, 20), ringMat);
+  ring.position.copy(core.position); ring.rotation.y = Math.PI/2;
+  t.userData.torso.add(ring);
+  const ring2 = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.56, 20), ringMat.clone());
+  ring2.position.copy(core.position); ring2.rotation.y = Math.PI/2; ring2.material.opacity = 0.3;
+  t.userData.torso.add(ring2);
+
+  // 긴 코트자락 (사진 속 트렌치코트 느낌)
+  const coatMat = new THREE.MeshStandardMaterial({ color:0x0d0e12, roughness:0.75 });
+  const coatTail = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.9, 0.16), coatMat);
+  coatTail.position.set(0, -0.95, -0.22);
+  t.userData.torso.add(coatTail);
+  const coatTailL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.0, 0.14), coatMat);
+  coatTailL.position.set(-0.42, -1.0, -0.2); coatTailL.rotation.z = 0.08;
+  t.userData.torso.add(coatTailL);
+  const coatTailR = coatTailL.clone();
+  coatTailR.position.x = 0.42; coatTailR.rotation.z = -0.08;
+  t.userData.torso.add(coatTailR);
+
+  // 등 뒤 방패 (기본 접힌 상태로 숨김, 방패모드때만 표시)
+  const shieldMat = new THREE.MeshStandardMaterial({ color:0x2a3038, roughness:0.4, metalness:0.7, emissive:0x2fa8ff, emissiveIntensity:0.25 });
+  const shield = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.5, 0.14), shieldMat);
+  shield.position.set(0, 0, -0.32);
+  shield.visible = false;
+  const shieldTrimMat = new THREE.MeshStandardMaterial({ color:0x2fa8ff, emissive:0x2fa8ff, emissiveIntensity:1.0 });
+  [[-0.4,0.68],[0.4,0.68],[-0.4,-0.68],[0.4,-0.68]].forEach(([ex,ey]) => {
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,0.16), shieldTrimMat);
+    trim.position.set(ex, ey, 0);
+    shield.add(trim);
+  });
+  t.userData.torso.add(shield);
+
+  t.userData.core = core; t.userData.coreLight = coreLight; t.userData.coreRing = ring; t.userData.coreRing2 = ring2; t.userData.shieldMesh = shield;
+  t.userData.phase = 0;
+  return t;
+}
+
+// ---- VFX 헬퍼 ----
+function spawnRingShockwave(pos, color, maxRadius, life = 0.5) {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.2, 0.5, 32),
+    new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.85, side:THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI/2;
+  ring.position.set(pos.x, 0.15, pos.z);
+  cityGroup.add(ring);
+  const start = performance.now();
+  function tick() {
+    const e = (performance.now() - start) / (life*1000);
+    if (e >= 1) { if (ring.parent) ring.parent.remove(ring); return; }
+    const r = 0.3 + maxRadius * e;
+    ring.scale.set(r, r, r);
+    ring.material.opacity = 0.85 * (1-e);
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function spawnImpactBurst(pos, color = 0x2fa8ff, count = 10) {
+  for (let i = 0; i < count; i++) {
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.9 }));
+    p.position.set(pos.x, pos.y + 1.2, pos.z);
+    cityGroup.add(p);
+    const ang = Math.random()*Math.PI*2, spd = 2 + Math.random()*3;
+    const vel = { x: Math.cos(ang)*spd, y: 2 + Math.random()*3, z: Math.sin(ang)*spd };
+    const start = performance.now();
+    function tick() {
+      const dt2 = 0.016;
+      const e = (performance.now() - start) / 700;
+      if (e >= 1) { if (p.parent) p.parent.remove(p); return; }
+      vel.y -= 9 * dt2;
+      p.position.x += vel.x*dt2; p.position.y += vel.y*dt2; p.position.z += vel.z*dt2;
+      p.material.opacity = 0.9*(1-e);
+      requestAnimationFrame(tick);
+    }
+    tick();
+  }
+}
+
+function spawnFlameParticle(pos, dirVec = null) {
+  const size = 0.32 + Math.random()*0.42;
+  const flame = new THREE.Mesh(
+    new THREE.ConeGeometry(size*0.42, size, 7),
+    new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0x2fa8ff : 0xbfe9ff, transparent:true, opacity:0.9 })
+  );
+  flame.position.copy(pos);
+  flame.position.x += (Math.random()-0.5)*0.5;
+  flame.position.y += (Math.random()-0.5)*0.3;
+  flame.position.z += (Math.random()-0.5)*0.5;
+  if (dirVec) flame.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dirVec);
+  cityGroup.add(flame);
+  const start = performance.now();
+  const life = 420 + Math.random()*280;
+  const rise = dirVec ? 0 : 1.6 + Math.random();
+  function tick() {
+    const e = (performance.now() - start) / life;
+    if (e >= 1) { if (flame.parent) flame.parent.remove(flame); return; }
+    if (rise) flame.position.y += rise*0.016;
+    flame.material.opacity = 0.9 * (1-e);
+    flame.scale.setScalar(1 - e*0.35);
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function spawnCoreBreathBeam(fromPos, dirYaw) {
+  const dir = new THREE.Vector3(Math.sin(dirYaw), 0, Math.cos(dirYaw));
+  const len = TITAN_COREBREATH_RANGE;
+  const beam = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.6, 1.6, len, 12, 1, true),
+    new THREE.MeshBasicMaterial({ color:0x2fa8ff, transparent:true, opacity:0.65, side:THREE.DoubleSide })
+  );
+  beam.position.copy(fromPos).addScaledVector(dir, len/2);
+  beam.position.y = 2.2;
+  beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+  cityGroup.add(beam);
+  const glow = new THREE.PointLight(0x2fa8ff, 4, 14);
+  glow.position.copy(fromPos).add(new THREE.Vector3(0, 2, 0));
+  cityGroup.add(glow);
+  // 빔을 따라 흐르는 파란 불꽃 파티클
+  for (let i = 1; i <= 7; i++) {
+    const p = fromPos.clone().addScaledVector(dir, (len/7)*i);
+    p.y = 2.2;
+    spawnFlameParticle(p, dir);
+  }
+  const start = performance.now();
+  function tick() {
+    const e = (performance.now() - start) / 900;
+    if (e >= 1) { if (beam.parent) beam.parent.remove(beam); if (glow.parent) glow.parent.remove(glow); return; }
+    beam.material.opacity = 0.65 * (1-e);
+    glow.intensity = 4 * (1-e);
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+// ---- 스킬 1: 내려찍기 (다리로 강하게 밟는 스톰프, 광역 데미지) ----
+function useTitanStomp() {
+  if (!titanState.active || titanState.stompCooldown > 0) return;
+  titanState.stompCooldown = TITAN_STOMP_COOLDOWN;
+  const mesh = titanState.mesh;
+  if (mesh && mesh.userData.legR) {
+    const legR = mesh.userData.legR;
+    mesh.userData.isAttacking = true;
+    legR.rotation.x = -Math.PI/2.2;
+    setTimeout(() => {
+      legR.rotation.x = Math.PI/6; // 강하게 밟기
+      spawnRingShockwave(player.position, 0x2fa8ff, TITAN_STOMP_RANGE, 0.55);
+      spawnImpactBurst(player.position, 0x8fd4ff, 14);
+      const dmg = computeEquipStats().atk * 1.3;
+      if (currentMapId === 'ruined_city') {
+        enemies.forEach(en => {
+          if (en.dead) return;
+          const dist = Math.hypot(en.x - player.position.x, en.z - player.position.z);
+          if (dist < TITAN_STOMP_RANGE) { en.health -= dmg; if (en.health <= 0) killEnemy(en); }
+        });
+      }
+      setTimeout(() => { legR.rotation.x = 0; mesh.userData.isAttacking = false; }, 220);
+    }, 220);
+  }
+  centerMsg('👣 내려찍기!');
+}
+
+// ---- 스킬 2: 방패모드 (등 뒤에서 방패 꺼내 방어력 상승 + 피해 감소) ----
+function useTitanShield() {
+  if (!titanState.active || titanState.shieldCooldown > 0) return;
+  titanState.shieldCooldown = TITAN_SHIELD_COOLDOWN;
+  titanState.shieldActive = true;
+  titanState.shieldTimer = TITAN_SHIELD_DURATION;
+  if (titanState.mesh && titanState.mesh.userData.shieldMesh) {
+    titanState.mesh.userData.shieldMesh.visible = true;
+    if (titanState.mesh.userData.armL) titanState.mesh.userData.armL.rotation.x = -Math.PI/2.4;
+  }
+  centerMsg('🛡️ 방패모드! 방어력 대폭 상승');
+}
+
+function endTitanShield() {
+  titanState.shieldActive = false;
+  if (titanState.mesh && titanState.mesh.userData.shieldMesh) {
+    titanState.mesh.userData.shieldMesh.visible = false;
+    if (titanState.mesh.userData.armL) titanState.mesh.userData.armL.rotation.x = 0;
+  }
+}
+
+// ---- 스킬 3: 강력한 펀치 ----
+function useTitanPunch() {
+  if (!titanState.active || titanState.punchCooldown > 0) return;
+  titanState.punchCooldown = TITAN_PUNCH_COOLDOWN;
+  const mesh = titanState.mesh;
+  if (mesh && mesh.userData.armR) {
+    mesh.userData.isAttacking = true;
+    mesh.userData.armR.rotation.x = -Math.PI/1.15;
+    setTimeout(() => {
+      mesh.userData.armR.rotation.x = Math.PI/2.5;
+      const fwd = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
+      const hitPos = player.position.clone().addScaledVector(fwd, 2.2);
+      spawnImpactBurst(hitPos, 0xfff2b0, 12);
+      const dmg = computeEquipStats().atk * 1.8;
+      if (currentMapId === 'ruined_city') {
+        enemies.forEach(en => {
+          if (en.dead) return;
+          const dist = Math.hypot(en.x - hitPos.x, en.z - hitPos.z);
+          if (dist < TITAN_PUNCH_RANGE) { en.health -= dmg; if (en.health <= 0) killEnemy(en); }
+        });
+      }
+      setTimeout(() => { mesh.userData.armR.rotation.x = 0; mesh.userData.isAttacking = false; }, 200);
+    }, 180);
+  }
+  centerMsg('👊 강력한 펀치!');
+}
+
+// ---- 궁극기: 코어브레스 (등 뒤 파란 코어에서 빛이 뿜어져 나오는 광역 필살기) ----
+function useTitanCoreBreath() {
+  if (!titanState.active || titanState.coreBreathCooldown > 0) return;
+  titanState.coreBreathCooldown = TITAN_COREBREATH_COOLDOWN;
+  const mesh = titanState.mesh;
+  if (mesh && mesh.userData.core) {
+    const core = mesh.userData.core, light = mesh.userData.coreLight;
+    let t = 0;
+    const chargeUp = setInterval(() => {
+      if (!titanState.active || !mesh.visible) { clearInterval(chargeUp); return; }
+      t += 0.05;
+      core.material.emissiveIntensity = 1.8 + t*10;
+      light.intensity = 2.4 + t*14;
+      const coreWorldPos = core.getWorldPosition(new THREE.Vector3());
+      spawnFlameParticle(coreWorldPos);
+      spawnFlameParticle(coreWorldPos);
+      if (Math.random() > 0.5) spawnFlameParticle(coreWorldPos);
+      if (t >= 0.5) {
+        clearInterval(chargeUp);
+        const coreFinalPos = core.getWorldPosition(new THREE.Vector3());
+        spawnRingShockwave(coreFinalPos, 0x2fa8ff, 5, 0.5);
+        for (let i = 0; i < 16; i++) spawnFlameParticle(coreFinalPos);
+        spawnCoreBreathBeam(player.position, player.rotation.y);
+        spawnImpactBurst(player.position, 0x2fa8ff, 24);
+        const dmg = computeEquipStats().atk * 3.2;
+        if (currentMapId === 'ruined_city') {
+          const fwd = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
+          enemies.forEach(en => {
+            if (en.dead) return;
+            const toEn = new THREE.Vector3(en.x - player.position.x, 0, en.z - player.position.z);
+            const dist = toEn.length();
+            if (dist < TITAN_COREBREATH_RANGE && (dist < 0.1 || toEn.normalize().dot(fwd) > 0.55)) {
+              en.health -= dmg; if (en.health <= 0) killEnemy(en);
+            }
+          });
+        }
+        setTimeout(() => { core.material.emissiveIntensity = 1.8; light.intensity = 2.4; }, 300);
+      }
+    }, 50);
+  }
+  centerMsg('🔵 코어브레스!!');
+}
+
+// ---- 변신 시작/종료/갱신 ----
+function tryTitanTransform() {
+  if (!gameRunning || cutscene.active) return;
+  if (!titanState.unlocked) { centerMsg('🔵 타이탄 카메라맨의 코어를 장착해야 변신할 수 있어요'); return; }
+  if (titanState.active) return;
+  if (titanState.cooldown > 0) { centerMsg('🔵 재사용 대기 중: ' + titanState.cooldown.toFixed(0) + '초'); return; }
+  playTitanDropCutscene();
+}
+
+// ---- 카메라 헬기 2대가 타이탄을 하늘에서 투하하는 변신 컷신 ----
+function createCutsceneHeliMesh() {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color:0x1a1c20, roughness:0.7, metalness:0.4 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.2, 6.2), bodyMat);
+  g.add(body);
+  const cockpit = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.6, 2.6), new THREE.MeshStandardMaterial({ color:0xd0d5db, roughness:0.4, metalness:0.2 }));
+  cockpit.position.set(0, 0.55, 2.9);
+  g.add(cockpit);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 3.2), bodyMat);
+  tail.position.set(0, 0.15, -4.4);
+  g.add(tail);
+  const finMat = new THREE.MeshStandardMaterial({ color:0x22252a, roughness:0.6 });
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.1, 1.0), finMat);
+  fin.position.set(0, 0.9, -5.7);
+  g.add(fin);
+  const blades = new THREE.Group();
+  const rotorMat = new THREE.MeshStandardMaterial({ color:0x111111, roughness:0.8 });
+  for (let i = 0; i < 4; i++) {
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 7.2), rotorMat);
+    const pivot = new THREE.Group(); pivot.rotation.y = (Math.PI*2/4)*i;
+    pivot.add(blade); blades.add(pivot);
+  }
+  blades.position.set(0, 1.35, 0);
+  g.add(blades);
+  g.userData.blades = blades;
+  const beaconMat = new THREE.MeshStandardMaterial({ color:0xff3344, emissive:0xff2233, emissiveIntensity:1.2 });
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), beaconMat);
+  beacon.position.set(0, -1.15, 0);
+  g.add(beacon);
+  return g;
+}
+
+function animateTitanHeliDrop(heliL, heliR, dropPos, startY) {
+  const duration = 3400;
+  const start = performance.now();
+  const startPosL = heliL.position.clone(), startPosR = heliR.position.clone();
+  const targetLx = dropPos.x - 6.5, targetRx = dropPos.x + 6.5, targetZ = dropPos.z;
+  let impactDone = false;
+  function tick() {
+    const now = performance.now();
+    const e = Math.min(1, (now - start) / duration);
+    heliL.position.x = startPosL.x + (targetLx - startPosL.x) * e;
+    heliL.position.z = startPosL.z + (targetZ - startPosL.z) * e;
+    heliR.position.x = startPosR.x + (targetRx - startPosR.x) * e;
+    heliR.position.z = startPosR.z + (targetZ - startPosR.z) * e;
+    heliL.userData.blades.rotation.y -= 0.55;
+    heliR.userData.blades.rotation.y -= 0.55;
+
+    if (titanState.mesh) {
+      const fallStart = 0.42, fallEnd = 0.82;
+      if (e < fallStart) {
+        titanState.mesh.position.x = (heliL.position.x + heliR.position.x) / 2;
+        titanState.mesh.position.z = (heliL.position.z + heliR.position.z) / 2;
+        titanState.mesh.position.y = startY - 5;
+        titanState.mesh.rotation.z = Math.sin(e*10) * 0.03;
+      } else if (e < fallEnd) {
+        const fe = (e - fallStart) / (fallEnd - fallStart);
+        const easeIn = fe * fe;
+        titanState.mesh.position.x = dropPos.x;
+        titanState.mesh.position.z = dropPos.z;
+        titanState.mesh.position.y = (startY - 5) * (1 - easeIn);
+        titanState.mesh.rotation.x = fe * 0.12;
+      } else {
+        titanState.mesh.position.set(dropPos.x, 0, dropPos.z);
+        titanState.mesh.rotation.set(0, titanState.mesh.rotation.y, 0);
+        if (!impactDone) {
+          impactDone = true;
+          spawnRingShockwave(dropPos, 0x2fa8ff, 11, 0.75);
+          spawnImpactBurst(dropPos, 0x9fd8ff, 28);
+        }
+      }
+    }
+    if (e < 1) requestAnimationFrame(tick);
+    else { if (heliL.parent) heliL.parent.remove(heliL); if (heliR.parent) heliR.parent.remove(heliR); }
+  }
+  tick();
+}
+
+function playTitanDropCutscene() {
+  if (!titanState.mesh) {
+    titanState.mesh = createTitanMesh();
+    scene.add(titanState.mesh);
+  }
+  const dropPos = player.position.clone();
+  const startY = 42;
+  const heliL = createCutsceneHeliMesh();
+  const heliR = createCutsceneHeliMesh();
+  heliL.position.set(dropPos.x - 30, startY, dropPos.z - 34);
+  heliR.position.set(dropPos.x + 30, startY, dropPos.z - 34);
+  heliL.rotation.y = 0.3; heliR.rotation.y = -0.3;
+  scene.add(heliL); scene.add(heliR);
+
+  titanState.mesh.position.set(dropPos.x - 15, startY - 5, dropPos.z - 34);
+  titanState.mesh.rotation.set(0, player.rotation.y, 0);
+  titanState.mesh.visible = true;
+  if (giantSkinMesh) giantSkinMesh.visible = false;
+  player.visible = false;
+
+  const waypoints = [
+    { pos:{ x:dropPos.x+8,  y:startY-4, z:dropPos.z-52 }, look:{ x:dropPos.x, y:startY-6, z:dropPos.z-30 }, dur:1.2 },
+    { pos:{ x:dropPos.x+13, y:startY-14, z:dropPos.z+6 }, look:{ x:dropPos.x, y:startY-16, z:dropPos.z-6 }, dur:1.6 },
+    { pos:{ x:dropPos.x+5,  y:7,  z:dropPos.z+11 },        look:{ x:dropPos.x, y:3, z:dropPos.z },          dur:1.5 },
+    { pos:{ x:dropPos.x,    y:9,  z:dropPos.z+9 },         look:{ x:dropPos.x, y:5, z:dropPos.z },          dur:1.3 },
+  ];
+  const lines = [
+    { start:0.2, end:1.3, text:'카메라 헬기 2대가 하늘에서 접근한다...' },
+    { start:1.5, end:3.0, text:'🔵 타이탄 카메라맨을 투하한다!' },
+    { start:3.2, end:4.7, text:'⚡ 착지 충격파!!' },
+  ];
+  animateTitanHeliDrop(heliL, heliR, dropPos, startY);
+  playCutscene(waypoints, lines, () => {
+    finalizeTitanTransform(dropPos);
+  });
+}
+
+function finalizeTitanTransform(dropPos) {
+  titanState.active = true;
+  titanState.timer = TITAN_DURATION;
+  titanState.cooldown = TITAN_COOLDOWN;
+  titanState.stompCooldown = 0; titanState.shieldCooldown = 0; titanState.punchCooldown = 0; titanState.coreBreathCooldown = 0;
+  titanState.shieldActive = false; titanState.shieldTimer = 0;
+
+  titanState.prevMaxHealth = playerState.maxHealth;
+  playerState.maxHealth += TITAN_HEALTH_BONUS;
+  playerState.health = Math.min(playerState.maxHealth, playerState.health + TITAN_HEALTH_BONUS);
+
+  titanState.prevCamDistance = camState.distance;
+  camState.distance = Math.max(camState.distance, 26);
+  titanState.prevFov = camera.fov;
+  camera.fov = 85;
+  camera.updateProjectionMatrix();
+
+  if (!flightState.unlocked) flightState.unlocked = true; // 타이탄 각성 시 제트팩도 함께 업그레이드
+
+  if (giantSkinMesh) giantSkinMesh.visible = false;
+  player.visible = false;
+  titanState.mesh.visible = true;
+  titanState.mesh.position.set(dropPos.x, 0, dropPos.z);
+  titanState.mesh.rotation.set(0, player.rotation.y, 0);
+
+  centerMsg('⚡🔵 타이탄 카메라맨 각성 완료!');
+  refreshClassButtons();
+  updateHUD();
+}
+
+function endTitanTransform() {
+  if (!titanState.active) return;
+  titanState.active = false;
+  endTitanShield();
+  if (titanState.mesh) titanState.mesh.visible = false;
+  playerState.maxHealth = titanState.prevMaxHealth;
+  if (playerState.health > playerState.maxHealth) playerState.health = playerState.maxHealth;
+  if (titanState.prevCamDistance !== null) camState.distance = titanState.prevCamDistance;
+  if (titanState.prevFov) { camera.fov = titanState.prevFov; camera.updateProjectionMatrix(); }
+  refreshPlayerSkinVisibility();
+  centerMsg('타이탄 모드 종료');
+  refreshClassButtons();
+  updateHUD();
+}
+
+function updateTitanState(dt) {
+  if (titanState.cooldown > 0) titanState.cooldown -= dt;
+  if (titanState.stompCooldown > 0) titanState.stompCooldown -= dt;
+  if (titanState.shieldCooldown > 0) titanState.shieldCooldown -= dt;
+  if (titanState.punchCooldown > 0) titanState.punchCooldown -= dt;
+  if (titanState.coreBreathCooldown > 0) titanState.coreBreathCooldown -= dt;
+  if (titanState.shieldActive) {
+    titanState.shieldTimer -= dt;
+    if (titanState.mesh && titanState.mesh.userData.shieldMesh) {
+      const pulse = 0.7 + Math.sin(performance.now()*0.01) * 0.3;
+      titanState.mesh.userData.shieldMesh.material.emissiveIntensity = pulse;
+    }
+    if (titanState.shieldTimer <= 0) endTitanShield();
+  }
+  if (titanState.active) {
+    titanState.timer -= dt;
+    if (titanState.mesh) {
+      titanState.mesh.userData.phase += dt;
+      if (titanState.mesh.userData.coreRing) titanState.mesh.userData.coreRing.rotation.z += dt*1.4;
+      if (titanState.mesh.userData.coreRing2) titanState.mesh.userData.coreRing2.rotation.z -= dt*0.9;
+    }
+    if (titanState.timer <= 0) endTitanTransform();
+  }
+}
+
+// ---- 코어 제작 컷신: 과학실(연구실)에서 코어를 안정화시키는 연출 ----
+function startTitanForgeCutscene(onComplete) {
+  const lab = MAP_DATA.TITAN_LAB_LOCATION;
+  const px = player.position.x, pz = player.position.z;
+  const waypoints = [
+    { pos:{ x:px+3,     y:8,   z:pz+10 },   look:{ x:px, y:1.4, z:pz },           dur:1.3 },
+    { pos:{ x:lab.x+3.6, y:3.2, z:lab.z+3.6 }, look:{ x:lab.x, y:1.6, z:lab.z },   dur:1.7 },
+    { pos:{ x:lab.x+1.1, y:2.2, z:lab.z+1.6 }, look:{ x:lab.x, y:1.8, z:lab.z },   dur:2.4 }, // 코어 클로즈업
+    { pos:{ x:px,       y:5,   z:pz+8 },   look:{ x:px, y:1.5, z:pz },            dur:1.3 },
+  ];
+  const lines = [
+    { start:0.2, end:1.2, text:'타이탄의 코어(원석)를 연구실 안정화 장치에 넣는다...' },
+    { start:1.4, end:2.9, text:'🔵 코어 출력이 서서히 상승하고 있다...' },
+    { start:3.0, end:5.3, text:'출력 안정화 완료! ⚡ 타이탄 카메라맨의 코어가 완성됐다!' },
+  ];
+  playCutscene(waypoints, lines, onComplete);
+}
+
+
+function setupTouchControls() {
+  document.getElementById('touchControls').style.display = 'block';
+  document.getElementById('instructions').style.display = 'none';
+  document.getElementById('attackBtn').style.display = 'flex';
+  document.getElementById('dashBtn').style.display = 'flex';
+  refreshWeaponSkillButton();
+  document.getElementById('jumpBtn').style.display = 'flex';
+
+  const moveZone = document.getElementById('moveZone');
+  const joyBase = document.getElementById('joyBase');
+  const joyStick = document.getElementById('joyStick');
+  let moveTouchId = null, moveOrigin = {x:0,y:0};
+  const maxR = 50;
+
+  moveZone.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (moveTouchId !== null) return;
+    const t = e.changedTouches[0];
+    moveTouchId = t.identifier; moveOrigin = { x: t.clientX, y: t.clientY };
+    joyBase.style.left = t.clientX + 'px'; joyBase.style.top = t.clientY + 'px'; joyBase.style.opacity = 1;
+    joyStick.style.left = t.clientX + 'px'; joyStick.style.top = t.clientY + 'px'; joyStick.style.opacity = 1;
+    touchMove.active = true;
+  }, {passive:false});
+
+  moveZone.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== moveTouchId) continue;
+      let dx = t.clientX - moveOrigin.x, dy = t.clientY - moveOrigin.y;
+      const dist = Math.hypot(dx,dy);
+      if (dist > maxR) { dx = dx/dist*maxR; dy = dy/dist*maxR; }
+      joyStick.style.left = (moveOrigin.x + dx) + 'px'; joyStick.style.top = (moveOrigin.y + dy) + 'px';
+      touchMove.x = dx/maxR; touchMove.y = dy/maxR;
+    }
+  }, {passive:false});
+
+  function resetMove(e) {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== moveTouchId) continue;
+      moveTouchId = null; touchMove.x = 0; touchMove.y = 0; touchMove.active = false;
+      joyBase.style.opacity = 0; joyStick.style.opacity = 0;
+    }
+  }
+  moveZone.addEventListener('touchend', resetMove); moveZone.addEventListener('touchcancel', resetMove);
+
+  const lookZone = document.getElementById('lookZone');
+  let lookTouchId = null, lastLX=0, lastLY=0;
+  lookZone.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.changedTouches[0]; lookTouchId = t.identifier; lastLX = t.clientX; lastLY = t.clientY;
+  }, {passive:false});
+  lookZone.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== lookTouchId) continue;
+      const dx = t.clientX - lastLX, dy = t.clientY - lastLY;
+      lastLX = t.clientX; lastLY = t.clientY;
+      camState.targetTheta -= dx * 0.008;
+      camState.targetPhi = Math.max(0.15, Math.min(1.3, camState.targetPhi + dy*0.008));
+    }
+  }, {passive:false});
+  lookZone.addEventListener('touchend', e => { for (const t of e.changedTouches) if (t.identifier === lookTouchId) lookTouchId = null; });
+
+  document.getElementById('jumpBtn').addEventListener('touchstart', e => { e.preventDefault(); jumpHeld = true; tryJump(); }, {passive:false});
+  document.getElementById('jumpBtn').addEventListener('touchend', e => { e.preventDefault(); jumpHeld = false; }, {passive:false});
+  document.getElementById('attackBtn').addEventListener('touchstart', e => { e.preventDefault(); attack(); }, {passive:false});
+  document.getElementById('dashBtn').addEventListener('touchstart', e => { e.preventDefault(); tryDash(); }, {passive:false});
+  document.getElementById('skillBtn').addEventListener('touchstart', e => { e.preventDefault(); throwPlunger(); }, {passive:false});
+  document.getElementById('powerPunchBtn').addEventListener('touchstart', e => { e.preventDefault(); useSkillSlot1(); }, {passive:false});
+  document.getElementById('rageBtn').addEventListener('touchstart', e => { e.preventDefault(); useSkillSlot2(); }, {passive:false});
+  document.getElementById('supportBtn').addEventListener('touchstart', e => { e.preventDefault(); useSupport(); }, {passive:false});
+  document.getElementById('titanBtn').addEventListener('touchstart', e => { e.preventDefault(); tryTitanTransform(); }, {passive:false});
+  document.getElementById('titanBtn').style.display = titanState.unlocked ? 'flex' : 'none';
+}
+
+if (isTouchDevice) setupTouchControls();
+
+function resolveObstacleCollision(pos, radius) {
+  obstacleMeshes.forEach(o => {
+    const halfW = o.w/2 + radius, halfD = o.d/2 + radius;
+    const dx = pos.x - o.x, dz = pos.z - o.z;
+    if (Math.abs(dx) < halfW && Math.abs(dz) < halfD) {
+      const overlapX = halfW - Math.abs(dx);
+      const overlapZ = halfD - Math.abs(dz);
+      if (overlapX < overlapZ) pos.x += Math.sign(dx || 1) * overlapX;
+      else pos.z += Math.sign(dz || 1) * overlapZ;
+    }
+  });
+}
+
+function updateInteractables() {
+  let nearest = null, nearestDist = Infinity;
+  INTERACTABLES.forEach(it => {
+    if (it.mapId && it.mapId !== currentMapId) return;
+    const dist = Math.hypot(player.position.x - it.x, player.position.z - it.z);
+    if (dist < it.radius && dist < nearestDist) { nearest = it; nearestDist = dist; }
+  });
+  currentInteractable = nearest;
+  const prompt = document.getElementById('interactPrompt');
+  if (nearest) { prompt.textContent = nearest.label; prompt.style.display = 'block'; }
+  else prompt.style.display = 'none';
+}
+
+const clock = new THREE.Clock();
+let gameRunning = false;
+let isPlayerMoving = false;
+
+function updatePlayer(dt) {
+  const forward = new THREE.Vector3(Math.sin(camState.theta), 0, Math.cos(camState.theta));
+  const right = new THREE.Vector3(Math.sin(camState.theta+Math.PI/2), 0, Math.cos(camState.theta+Math.PI/2));
+  let move = new THREE.Vector3();
+
+  if (isTouchDevice && touchMove.active) {
+    move.add(right.clone().multiplyScalar(touchMove.x));
+    move.add(forward.clone().multiplyScalar(touchMove.y));
+  } else {
+    if (keys['KeyW']) move.sub(forward);
+    if (keys['KeyS']) move.add(forward);
+    if (keys['KeyA']) move.sub(right);
+    if (keys['KeyD']) move.add(right);
+  }
+
+  const hasInput = move.lengthSq() > 0.0001;
+  isPlayerMoving = hasInput || dashState.timer > 0;
+
+  if (hasInput) move.normalize();
+
+  if (dashState.timer > 0) {
+    const dashVec = new THREE.Vector3(dashState.dir.x, 0, dashState.dir.z).multiplyScalar(DASH_SPEED*dt);
+    player.position.add(dashVec);
+    dashState.timer -= dt;
+  } else if (hasInput) {
+    const speedMul = (flightState.active ? FLIGHT_SPEED_MULT : 1) * (rageState.active ? 1.3 : 1) * (reloadState.active ? 1.3 : 1);
+    move.multiplyScalar(playerState.speed*speedMul*dt);
+    player.position.add(move);
+    player.rotation.y = Math.atan2(move.x, move.z);
+  }
+  if (dashState.cooldown > 0) dashState.cooldown -= dt;
+  if (attackState.cooldown > 0) attackState.cooldown -= dt;
+  if (skillState.cooldown > 0) skillState.cooldown -= dt;
+  if (powerPunchState.cooldown > 0) powerPunchState.cooldown -= dt;
+  if (supportState.cooldown > 0) supportState.cooldown -= dt;
+  if (rageState.cooldown > 0) rageState.cooldown -= dt;
+  if (reloadState.cooldown > 0) reloadState.cooldown -= dt;
+  if (flightState.cooldown > 0) flightState.cooldown -= dt;
+  if (rageState.active) {
+    rageState.timer -= dt;
+    if (rageState.timer <= 0) { rageState.active = false; centerMsg('분노 효과 종료'); }
+  }
+  if (reloadState.active) {
+    reloadState.timer -= dt;
+    if (reloadState.timer <= 0) { reloadState.active = false; centerMsg('재장전 효과 종료'); }
+  }
+
+  if (playerState.health > 0 && playerState.health < playerState.maxHealth) {
+    regenState.idleTime += dt;
+    if (regenState.idleTime >= REGEN_DELAY) {
+      playerState.health = Math.min(playerState.maxHealth, playerState.health + playerState.maxHealth * REGEN_RATE * dt);
+      updateHUD();
+    }
+  }
+
+  if (flightState.active) {
+    flightState.timer -= dt;
+    playerState.velocityY = jumpHeld ? FLIGHT_ASCEND_SPEED : -FLIGHT_DESCEND_SPEED;
+    player.position.y += playerState.velocityY * dt;
+    playerState.onGround = false;
+    spawnFlightFlame(dt);
+    if (flightState.timer <= 0 || player.position.y <= 0) {
+      flightState.active = false;
+      flightState.cooldown = FLIGHT_COOLDOWN;
+      centerMsg(player.position.y <= 0 ? '🚀 착륙' : '🚀 연료 소진! 재충전 중...');
+    }
+    if (player.position.y <= 0) { player.position.y = 0; playerState.velocityY = 0; playerState.onGround = true; }
+  } else {
+    playerState.velocityY -= 25*dt;
+    player.position.y += playerState.velocityY*dt;
+    if (player.position.y <= 0) { player.position.y = 0; playerState.velocityY = 0; playerState.onGround = true; }
+  }
+
+  const r = (currentMapId === 'ruined_city' ? CITY_MAP.boundaryRadius : MAP_DATA.boundaryRadius) - 1.5;
+  const distFromCenter = Math.hypot(player.position.x, player.position.z);
+  if (distFromCenter > r) {
+    const ang = Math.atan2(player.position.z, player.position.x);
+    player.position.x = Math.cos(ang)*r;
+    player.position.z = Math.sin(ang)*r;
+  }
+
+  if (currentMapId === 'ruined_city') resolveCityCollision(player.position, playerState.radius);
+  else resolveObstacleCollision(player.position, playerState.radius);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, clock.getDelta());
+  if (gameRunning && !cutscene.active) {
+    updatePlayer(dt); updateInteractables(); updateGate(dt); updateEnemies(dt); updateAllies(dt);
+    checkGiantZoneCutsceneTrigger();
+    checkGManTrigger();
+    updateTitanState(dt);
+  }
+
+  // 플레이어 및 소환수 걷기 애니메이션 적용
+  animateBiped(player, playerState.speed, dt, isPlayerMoving && playerState.onGround);
+  if (titanState.active && titanState.mesh) {
+    titanState.mesh.position.copy(player.position);
+    titanState.mesh.rotation.y = player.rotation.y;
+    animateBiped(titanState.mesh, playerState.speed, dt, isPlayerMoving && playerState.onGround);
+  }
+  if (giantSkinMesh && giantSkinMesh.visible) {
+    giantSkinMesh.position.copy(player.position);
+    giantSkinMesh.rotation.y = player.rotation.y;
+    animateBiped(giantSkinMesh, playerState.speed, dt, isPlayerMoving && playerState.onGround);
+  }
+  allies.forEach(a => {
+    animateBiped(a.mesh, 3.5, dt, a.moving);
+  });
+  
+  // 나머지 NPC 대기 숨쉬기 모션 적용
+  animatedCharacters.forEach(c => {
+    if (c !== player && c !== titanState.mesh && c !== giantSkinMesh && !allies.find(al => al.mesh === c)) {
+      animateBiped(c, 0, dt, false);
+    }
+  });
+
+  if (mainHeli && mainHeli.userData.blades) {
+    mainHeli.userData.blades.rotation.y -= dt * 6.0;
+  }
+
+  updateShopParticles(dt);
+  updateFlightParticles(dt);
+  updateTitanLabStation(dt);
+  if (flightState.unlocked) {
+    const hint = document.getElementById('jetpackHint');
+    hint.style.display = 'block';
+    if (flightState.active) hint.textContent = '🚀 비행 중: ' + flightState.timer.toFixed(1) + '초';
+    else if (flightState.cooldown > 0) hint.textContent = '🚀 재충전 중: ' + flightState.cooldown.toFixed(1) + '초';
+    else hint.textContent = '🚀 제트팩 준비 완료 (공중에서 점프)';
+  }
+  if (titanState.unlocked) {
+    const thint = document.getElementById('titanHint');
+    thint.style.display = 'block';
+    if (titanState.active) thint.textContent = '🔵 타이탄 모드: ' + titanState.timer.toFixed(1) + '초 남음';
+    else if (titanState.cooldown > 0) thint.textContent = '🔵 타이탄 코어 재충전 중: ' + titanState.cooldown.toFixed(0) + '초';
+    else thint.textContent = '🔵 타이탄 모드 준비 완료 (C 키 / 버튼)';
+  }
+  if (cutscene.active) updateCutscene(dt);
+  else updateCamera();
+  if (isTouchDevice) {
+    document.getElementById('attackBtn').classList.toggle('onCooldown', attackState.cooldown > 0);
+    document.getElementById('dashBtn').classList.toggle('onCooldown', dashState.cooldown > 0);
+    if (titanState.active) {
+      document.getElementById('skillBtn').classList.toggle('onCooldown', titanState.stompCooldown > 0);
+      document.getElementById('powerPunchBtn').classList.toggle('onCooldown', titanState.shieldCooldown > 0);
+      document.getElementById('rageBtn').classList.toggle('onCooldown', titanState.punchCooldown > 0);
+      document.getElementById('supportBtn').classList.toggle('onCooldown', titanState.coreBreathCooldown > 0);
+    } else {
+      document.getElementById('skillBtn').classList.toggle('onCooldown', skillState.cooldown > 0);
+      document.getElementById('powerPunchBtn').classList.toggle('onCooldown', powerPunchState.cooldown > 0);
+      document.getElementById('rageBtn').classList.toggle('onCooldown', (playerStats.job === 'cameraman2' ? reloadState.cooldown : rageState.cooldown) > 0);
+      document.getElementById('supportBtn').classList.toggle('onCooldown', supportState.cooldown > 0);
+    }
+    document.getElementById('titanBtn').classList.toggle('onCooldown', titanState.cooldown > 0 || titanState.active);
+  }
+  renderer.render(scene, camera);
+}
+animate();
+
+function startGame() {
+  const startScreen = document.getElementById('startScreen');
+  startScreen.style.transition = "opacity 0.5s";
+  startScreen.style.opacity = 0;
+  setTimeout(() => { startScreen.style.display = 'none'; }, 500);
+  gameRunning = true;
+}
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('startBtn').addEventListener('touchend', function(e){ e.preventDefault(); startGame(); }, {passive:false});
+
+const invToggleBtn = document.getElementById('invToggleBtn');
+invToggleBtn.addEventListener('click', openInventory);
+invToggleBtn.addEventListener('touchend', e => { e.preventDefault(); openInventory(); }, {passive:false});
+
+document.getElementById('invCloseBtn').addEventListener('click', closeInventory);
+['weapon','head','chest','legs','feet','titan'].forEach(slot => {
+  document.getElementById('slot_' + slot).addEventListener('click', () => unequipItem(slot));
+});
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'KeyI') {
+    const modal = document.getElementById('invModal');
+    if (modal.style.display === 'flex') closeInventory(); else openInventory();
+  }
+  if (e.code === 'KeyF' && currentInteractable) currentInteractable.onInteract();
+});
+
+const interactPrompt = document.getElementById('interactPrompt');
+function triggerInteract() { if (currentInteractable) currentInteractable.onInteract(); }
+interactPrompt.addEventListener('click', triggerInteract);
+interactPrompt.addEventListener('touchend', e => { e.preventDefault(); triggerInteract(); }, {passive:false});
+
+document.getElementById('shopCloseBtn').addEventListener('click', closeShop);
+document.getElementById('questCloseBtn').addEventListener('click', closeQuestDialog);
+document.getElementById('travelCloseBtn').addEventListener('click', closeTravelDialog);
+document.getElementById('jobCloseBtn').addEventListener('click', closeJobDialog);
+document.getElementById('giantJobCloseBtn').addEventListener('click', closeGiantJobDialog);
+document.getElementById('scientistCloseBtn').addEventListener('click', closeScientistDialog);
+document.getElementById('skillTreeCloseBtn').addEventListener('click', closeSkillTree);
+document.getElementById('returnBaseBtn').addEventListener('click', () => travelTo('base'));
+document.getElementById('returnBaseBtn').addEventListener('touchend', e => { e.preventDefault(); travelTo('base'); }, {passive:false});
+
+const skillTreeBtn = document.getElementById('skillTreeBtn');
+skillTreeBtn.addEventListener('click', openSkillTree);
+skillTreeBtn.addEventListener('touchend', e => { e.preventDefault(); openSkillTree(); }, {passive:false});
+
+const jobSelectBtn = document.getElementById('jobSelectBtn');
+jobSelectBtn.addEventListener('click', openJobSelect);
+jobSelectBtn.addEventListener('touchend', e => { e.preventDefault(); openJobSelect(); }, {passive:false});
+document.getElementById('jobSelectCloseBtn').addEventListener('click', closeJobSelect);
+
+const titanSelectBtn = document.getElementById('titanSelectBtn');
+titanSelectBtn.addEventListener('click', openTitanSelect);
+titanSelectBtn.addEventListener('touchend', e => { e.preventDefault(); openTitanSelect(); }, {passive:false});
+document.getElementById('titanSelectCloseBtn').addEventListener('click', closeTitanSelect);
+
+// ---------- 코드 시스템 ----------
+function forceLevelUpTo(target) {
+  while (playerStats.level < target) {
+    playerStats.level += 1;
+    playerStats.xpMax = Math.round(playerStats.xpMax * 1.25);
+    playerStats.baseAtk += 1; playerStats.baseDef += 1;
+    playerState.maxHealth += 10;
+  }
+  playerStats.xp = 0;
+  playerState.health = playerState.maxHealth;
+}
+
+function maxClassProgress(job) {
+  const classDef = CLASS_DB[job];
+  playerStats.classProgress[job] = {
+    treeXP: 0, treeXPMax: 1, treeLevel: classDef.maxTreeLevel,
+    atkBonus: (playerStats.classProgress[job] && playerStats.classProgress[job].atkBonus) || (job === 'cameraman' ? 1 : 0),
+    defBonus: (job === 'cameraman' ? 1 : (classDef.defBonus || 0)),
+  };
+}
+
+function applyCheatCode_VIPVAMP() {
+  // 코인
+  playerStats.coins = 10000;
+  // 레벨
+  forceLevelUpTo(99);
+  // 인벤토리: 게임 내 모든 아이템 지급
+  playerStats.invCapacity = Math.max(playerStats.invCapacity, Object.keys(ITEM_DB).length + 4);
+  Object.keys(ITEM_DB).forEach(id => {
+    if (!playerStats.inventory.find(e => e.itemId === id) && playerStats.equipment.weapon !== id && playerStats.equipment.titan !== id) {
+      addItem(id, 1);
+    }
+  });
+  // 직업: 전직 퀘스트 완료 + 모든 스킬트리 만렙
+  jobQuestState.status = 'completed';
+  giantJobQuestState.status = 'completed';
+  maxClassProgress('cameraman');
+  maxClassProgress('cameraman2');
+  maxClassProgress('giant_cameraman');
+  playerStats.job = 'cameraman2'; // 스킬을 바로 써볼 수 있는 직업으로 설정
+  playerState.maxHealth += CLASS_DB.cameraman2.healthBonus + CLASS_DB.giant_cameraman.healthBonus;
+  playerState.health = playerState.maxHealth;
+  flightState.unlocked = true;
+  if (player.userData.jetpackGroup) player.userData.jetpackGroup.visible = true;
+  if (player.userData.headsetGroup) player.userData.headsetGroup.visible = true;
+  // 퀘스트 전부 완료 처리
+  QUEST_CHAIN.forEach(id => {
+    const qp = getQuestProgress(id);
+    if (qp.status !== 'completed') { qp.status = 'completed'; qp.progress = QUEST_DB[id].targetCount; }
+  });
+  // 타이탄 코어 장착
+  playerStats.equipment.titan = 'titan_cameraman_core';
+  titanState.unlocked = true;
+
+  renderInventory(); updateHUD(); refreshClassButtons(); refreshWeaponSkillButton(); refreshTitanButton();
+  updateQuestMarker(); updateQuestTracker(); updateJobQuestTracker(); updateGiantJobQuestTracker(); updateScientistMarker();
+  centerMsg('👑 VIP 코드 적용 완료! 모든 보상을 받았어요');
+}
+
+function openCodeModal() {
+  if (document.pointerLockElement) document.exitPointerLock();
+  document.getElementById('codeInput').value = '';
+  document.getElementById('codeResultText').textContent = '';
+  document.getElementById('codeModal').style.display = 'flex';
+}
+function closeCodeModal() { document.getElementById('codeModal').style.display = 'none'; }
+
+function submitCode() {
+  const input = document.getElementById('codeInput');
+  const resultEl = document.getElementById('codeResultText');
+  const code = input.value.trim().toLowerCase();
+  if (code === 'vipvamp') {
+    applyCheatCode_VIPVAMP();
+    resultEl.style.color = '#3cff8b';
+    resultEl.textContent = '✅ 코드가 적용됐어요!';
+    setTimeout(closeCodeModal, 900);
+  } else {
+    resultEl.style.color = '#ff8a98';
+    resultEl.textContent = '❌ 잘못된 코드예요.';
+  }
+}
+
+const codeBtn = document.getElementById('codeBtn');
+codeBtn.addEventListener('click', openCodeModal);
+codeBtn.addEventListener('touchend', e => { e.preventDefault(); openCodeModal(); }, {passive:false});
+document.getElementById('codeCloseBtn').addEventListener('click', closeCodeModal);
+document.getElementById('codeSubmitBtn').addEventListener('click', submitCode);
+document.getElementById('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitCode(); });
+
+const cutsceneSkipBtn = document.getElementById('cutsceneSkipBtn');
+cutsceneSkipBtn.addEventListener('click', () => { if (cutscene.active) endCutscene(); });
+cutsceneSkipBtn.addEventListener('touchend', e => { e.preventDefault(); if (cutscene.active) endCutscene(); }, {passive:false});
+
+updateScientistMarker();
+updateHUD();
+</script>
+</body>
+</html>
